@@ -1,0 +1,44 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <h2>Votre demande de crédit</h2>
+    <p class="souscription">Étape 2 sur 4 — Montant, durée et objet du financement souhaité.</p>
+    <%- include('partials/progression', { actuel: 2 }) %>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <form method="POST" action="/demande/pret">
+      <div class="grid2">
+        <div class="champ">
+          <label>Montant souhaité (FCFA)</label>
+          <input type="number" name="montant" min="50000" max="5000000" placeholder="Entre 50 000 et 5 000 000" required>
+        </div>
+        <div class="champ">
+          <label>Durée (mois)</label>
+          <input type="number" name="duree" min="1" max="60" required>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Objet du crédit</label>
+        <input type="text" name="motif" placeholder="Ex : achat de matériel professionnel" required>
+      </div>
+      <div class="champ">
+        <label>Situation professionnelle</label>
+        <select name="situation" required>
+          <option value="">— Sélectionner —</option>
+          <option value="salarie">Salarié(e)</option>
+          <option value="independant">Indépendant(e)</option>
+          <option value="fonctionnaire">Fonctionnaire</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="actions">
+        <a href="/demande" class="btn secondaire">← Retour</a>
+        <button type="submit" class="btn">Continuer →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

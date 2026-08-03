@@ -1,0 +1,98 @@
+AFRILAND E-CRÉDIT — Portail de demande de crédit à distance
+================================================================
+Nouveau projet en Node.js / Express (indépendant de l'application
+interne Python/Flask). Étape 1 du plan : le portail public que les
+clients utiliseront à distance pour numériser leur demande de crédit.
+
+
+1. LANCER LE PROJET EN LOCAL (pour tester avant de déployer)
+-------------------------------------------------------------
+Prérequis : Node.js installé (https://nodejs.org, version 18 ou plus).
+
+Dans le dossier du projet :
+    npm install
+    node app.js
+
+Puis ouvre ton navigateur sur :
+    http://localhost:3000
+
+
+2. STRUCTURE DU PROJET
+-------------------------------------------------------------
+app.js                  -> serveur Express principal
+routes/portail.js       -> toute la logique du parcours de demande
+db/database.js          -> connexion SQLite (fichier ecredit.db, créé automatiquement)
+views/                  -> pages EJS (accueil, étapes 1 à 4, confirmation)
+public/css/style.css    -> charte graphique Afriland (rouge/or)
+public/img/qrcode.png   -> QR code généré pointant vers le site
+uploads/                -> pièces PDF déposées par les clients (créé automatiquement)
+generer_qrcode.js       -> script pour régénérer le QR code avec la vraie URL
+
+
+3. METTRE LE SITE EN LIGNE GRATUITEMENT (Render.com)
+-------------------------------------------------------------
+Pour que le QR code et le lien fonctionnent vraiment pour tes clients,
+le site doit être accessible sur Internet, pas juste sur ton PC.
+Render propose un hébergement gratuit simple, sans carte bancaire.
+
+   1. Crée un compte sur https://render.com (connexion possible avec GitHub)
+
+   2. Mets ton projet sur GitHub :
+      - Crée un dépôt (repository) sur https://github.com/new
+      - Dans le dossier du projet, en PowerShell :
+           git init
+           git add .
+           git commit -m "Premier envoi du portail Afriland E-Credit"
+           git branch -M main
+           git remote add origin https://github.com/TON-COMPTE/afriland-ecredit.git
+           git push -u origin main
+
+   3. Sur Render : "New +" -> "Web Service" -> connecte ton dépôt GitHub
+
+   4. Renseigne :
+      - Build Command  :  npm install
+      - Start Command  :  node app.js
+      - Plan           :  Free
+
+   5. Clique sur "Create Web Service". Après 2-3 minutes, Render te donne
+      une adresse du type :
+           https://afriland-ecredit.onrender.com
+
+   C'est cette adresse qui est ton VRAI lien public.
+
+   NOTE : sur le plan gratuit de Render, le site "s'endort" après 15 min
+   sans visite et met ~30 secondes à se réveiller au premier accès —
+   normal pour un plan gratuit, sans impact pour une démonstration
+   académique.
+
+
+4. REGENERER LE QR CODE AVEC LA VRAIE ADRESSE
+-------------------------------------------------------------
+Une fois ton adresse Render obtenue, dans le dossier du projet :
+
+    node generer_qrcode.js https://afriland-ecredit.onrender.com
+
+Cela met à jour public/img/qrcode.png automatiquement.
+
+Pour régénérer l'affiche prête à imprimer avec le nouveau QR code,
+renvoie-moi juste ta vraie adresse et je te la refais.
+
+
+5. CE QUI EST FAIT / CE QUI RESTE À FAIRE
+-------------------------------------------------------------
+FAIT (cette étape) :
+   - Portail public autonome (Node.js / Express / EJS / SQLite)
+   - Charte Afriland (logo, couleurs, nom "Afriland E-Crédit")
+   - Parcours en 4 étapes : informations, demande, documents (PDF
+     uniquement, 8 pièces), récapitulatif + envoi
+   - Numéro de référence unique par demande
+   - QR code + affiche prête à imprimer pour l'agence
+
+À FAIRE ENSUITE (comme convenu) :
+   - Migrer l'espace agent / superviseur (actuellement en Python/Flask)
+     vers Node.js, pour que les demandes reçues ici arrivent directement
+     dans leur tableau de bord
+   - Ajouter le module de demande de crédit pour les ENTREPRISES
+     (distinct du parcours particulier déjà construit)
+   - Brancher le modèle de Machine Learning (actuellement en Python)
+     sur ce nouveau backend

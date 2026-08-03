@@ -1,0 +1,55 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <h2>Vos informations personnelles</h2>
+    <p class="souscription">Étape 1 sur 4 — Renseignez votre identité et vos coordonnées.</p>
+    <%- include('partials/progression', { actuel: 1 }) %>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <form method="POST" action="/demande/etape1">
+      <div class="grid2">
+        <div class="champ">
+          <label>Nom</label>
+          <input type="text" name="nom" value="<%= donnees.nom || '' %>" required>
+        </div>
+        <div class="champ">
+          <label>Prénom</label>
+          <input type="text" name="prenom" value="<%= donnees.prenom || '' %>" required>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Email</label>
+          <input type="email" name="email" value="<%= donnees.email || '' %>" required>
+        </div>
+        <div class="champ">
+          <label>Téléphone</label>
+          <input type="text" name="telephone" maxlength="17" placeholder="+237 6XX XXX XXX" value="<%= donnees.telephone || '' %>" required>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Numéro CNI (9 caractères)</label>
+        <input type="text" name="cni" maxlength="9" style="text-transform:uppercase" value="<%= donnees.cni || '' %>" required>
+      </div>
+      <div class="champ">
+        <label>Êtes-vous déjà client Afriland First Bank ?</label>
+        <div class="radio-group">
+          <label><input type="radio" name="client_existant" value="oui" checked> Oui</label>
+          <label><input type="radio" name="client_existant" value="non"> Non</label>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Numéro de compte (si vous êtes déjà client)</label>
+        <input type="text" name="numero_compte" placeholder="Ex : AF1234567890" value="<%= donnees.numero_compte || '' %>">
+      </div>
+      <div class="actions">
+        <span></span>
+        <button type="submit" class="btn">Continuer →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

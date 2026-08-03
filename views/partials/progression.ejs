@@ -1,0 +1,14 @@
+<div class="etapes">
+  <div class="etape <%= actuel >= 1 ? (actuel === 1 ? 'actif' : 'fait') : '' %>">
+    <div class="rond"><%= actuel > 1 ? '✓' : '1' %></div><span>Informations</span>
+  </div>
+  <div class="etape <%= actuel >= 2 ? (actuel === 2 ? 'actif' : 'fait') : '' %>">
+    <div class="rond"><%= actuel > 2 ? '✓' : '2' %></div><span>Demande</span>
+  </div>
+  <div class="etape <%= actuel >= 3 ? (actuel === 3 ? 'actif' : 'fait') : '' %>">
+    <div class="rond"><%= actuel > 3 ? '✓' : '3' %></div><span>Documents</span>
+  </div>
+  <div class="etape <%= actuel >= 4 ? 'actif' : '' %>">
+    <div class="rond">4</div><span>Récapitulatif</span>
+  </div>
+</div>

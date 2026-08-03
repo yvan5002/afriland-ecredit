@@ -1,0 +1,4 @@
+node_modules/
+db/ecredit.json
+uploads/*/
+.DS_Store

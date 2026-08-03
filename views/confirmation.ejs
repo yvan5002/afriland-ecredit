@@ -1,0 +1,19 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card confirmation-box">
+    <div class="check">✓</div>
+    <h2>Votre demande a bien été envoyée</h2>
+    <p class="souscription">Un agent Afriland First Bank va examiner votre dossier. Conservez votre numéro de référence pour suivre son traitement.</p>
+
+    <div class="reference"><%= demande.reference %></div>
+
+    <p style="font-size:13px; color:var(--ink-soft); margin-top:20px;">
+      Vous recevrez une réponse par email et par téléphone. En cas de dossier incomplet, un conseiller vous contactera pour vous accompagner.
+    </p>
+
+    <a href="/" class="btn" style="margin-top:24px;">Retour à l'accueil</a>
+  </div>
+</div>
+
+<%- include('partials/pied') %>
