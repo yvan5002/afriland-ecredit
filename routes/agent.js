@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const bcrypt = require("bcryptjs");
+const path = require("path");
+const fs = require("fs");
 const {
   trouverParId, listerDemandesParStatut, compterParStatut, enregistrerDecision,
 } = require("../db/database");
@@ -93,29 +94,22 @@ router.get("/demande/:id", exigerAgent, (req, res) => {
     titre: `Demande ${demande.reference} — Espace agent`,
     demande,
     erreur: null,
-    resultatCode: null,
   });
 });
 
 // ============================================================
-// VÉRIFICATION DU CODE CLIENT (identité du titulaire du compte)
+// CONSULTATION SÉCURISÉE D'UN DOCUMENT (réservée aux agents connectés)
 // ============================================================
-router.post("/demande/:id/verifier-code", exigerAgent, (req, res) => {
+router.get("/documents/:id/:cle", exigerAgent, (req, res) => {
   const demande = trouverParId(req.params.id);
-  if (!demande) return res.redirect("/agent/tableau-bord");
+  const doc = demande && demande.documents && demande.documents[req.params.cle];
+  if (!doc) return res.status(404).send("Document introuvable.");
 
-  const codeSaisi = (req.body.code_saisi || "").trim();
-  let resultatCode = "vide";
-  if (demande.code_verification_hash && codeSaisi) {
-    resultatCode = bcrypt.compareSync(codeSaisi, demande.code_verification_hash) ? "correct" : "incorrect";
+  const chemin = path.join(__dirname, "..", "uploads", doc.chemin);
+  if (!fs.existsSync(chemin)) {
+    return res.status(404).send("Ce document n'est plus disponible sur le serveur (fichier expiré après un redémarrage).");
   }
-
-  res.render("agent_demande", {
-    titre: `Demande ${demande.reference} — Espace agent`,
-    demande,
-    erreur: null,
-    resultatCode,
-  });
+  res.sendFile(chemin);
 });
 
 // ============================================================
@@ -128,12 +122,13 @@ router.post("/demande/:id/decider", exigerAgent, (req, res) => {
   const { decision, commentaire } = req.body;
   const texte = (commentaire || "").trim();
 
-  if (!texte) {
+  if (!texte || texte.length < 15) {
     return res.render("agent_demande", {
       titre: `Demande ${demande.reference} — Espace agent`,
       demande,
-      erreur: "Un commentaire justificatif est obligatoire pour toute décision.",
-      resultatCode: null,
+      erreur: texte
+        ? "La justification est trop courte. Expliquez clairement le motif de votre décision (15 caractères minimum)."
+        : "Une justification écrite est obligatoire, que vous acceptiez ou refusiez cette demande.",
     });
   }
   if (demande.statut !== "nouvelle") {

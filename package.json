@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "afriland_ecredit",
   "version": "1.0.0",
   "description": "",
@@ -17,6 +17,7 @@
     "express-session": "^1.19.0",
     "lowdb": "^1.0.0",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.4",
     "pdfjs-dist": "^3.11.174",
     "qrcode": "^1.5.4"
   }

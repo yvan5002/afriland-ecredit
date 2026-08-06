@@ -3,7 +3,7 @@
 <div class="container">
   <div class="card">
     <h2>Vos informations personnelles</h2>
-    <p class="souscription">Étape 1 sur 4 — Renseignez votre identité et vos coordonnées.</p>
+    <p class="souscription">Étape 1 sur 5 — Renseignez votre identité et votre compte Afriland First Bank.</p>
     <%- include('partials/progression', { actuel: 1 }) %>
 
     <% if (reprise && donnees.nom) { %>
@@ -12,6 +12,11 @@
         <a href="/demande/nouveau">Recommencer à zéro</a> si ce n'est pas la vôtre.
       </div>
     <% } %>
+
+    <div class="info-reprise" style="border-color:var(--gold);">
+      Un crédit ne peut être accordé qu'à un client déjà titulaire d'un compte Afriland First Bank.
+      Votre email sera vérifié par un code envoyé automatiquement à l'étape suivante.
+    </div>
 
     <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
 
@@ -41,46 +46,16 @@
         <input type="text" name="cni" maxlength="9" style="text-transform:uppercase" value="<%= donnees.cni || '' %>" required>
       </div>
       <div class="champ">
-        <label>Êtes-vous déjà client Afriland First Bank ?</label>
-        <div class="radio-group">
-          <label><input type="radio" name="client_existant" value="oui" id="client-oui" <%= (donnees.client_existant === 'non' || donnees.client_existant === 0) ? '' : 'checked' %>> Oui</label>
-          <label><input type="radio" name="client_existant" value="non" id="client-non" <%= (donnees.client_existant === 'non' || donnees.client_existant === 0) ? 'checked' : '' %>> Non</label>
-        </div>
-      </div>
-
-      <div id="bloc-client-existant">
-        <div class="champ">
-          <label>Numéro de compte Afriland (11 chiffres)</label>
-          <input type="text" name="numero_compte" maxlength="11" placeholder="Ex : 12345678901" value="<%= donnees.numero_compte || '' %>">
-        </div>
-        <div class="champ">
-          <label>Code de vérification (4 à 6 chiffres)</label>
-          <input type="password" name="code_verification" maxlength="6" placeholder="Choisissez un code" inputmode="numeric">
-          <p style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;">
-            Ce code n'est pas votre mot de passe bancaire. Il sert uniquement à confirmer votre identité :
-            l'agent qui traitera votre dossier vous le redemandera par téléphone avant toute décision.
-          </p>
-        </div>
+        <label>Numéro de compte Afriland (11 chiffres)</label>
+        <input type="text" name="numero_compte" maxlength="11" placeholder="Ex : 12345678901" value="<%= donnees.numero_compte || '' %>" required>
       </div>
 
       <div class="actions">
         <span></span>
-        <button type="submit" class="btn">Continuer →</button>
+        <button type="submit" class="btn">Recevoir mon code de vérification →</button>
       </div>
     </form>
   </div>
 </div>
-
-<script>
-  const radios = document.querySelectorAll('input[name="client_existant"]');
-  const bloc = document.getElementById('bloc-client-existant');
-  function majBloc() {
-    const oui = document.getElementById('client-oui').checked;
-    bloc.style.display = oui ? 'block' : 'none';
-    bloc.querySelectorAll('input').forEach(i => i.required = oui);
-  }
-  radios.forEach(r => r.addEventListener('change', majBloc));
-  majBloc();
-</script>
 
 <%- include('partials/pied') %>

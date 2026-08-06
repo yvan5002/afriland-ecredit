@@ -3,14 +3,15 @@
 <div class="container">
   <div class="card">
     <h2>Récapitulatif de votre demande</h2>
-    <p class="souscription">Étape 4 sur 4 — Vérifiez vos informations avant l'envoi définitif.</p>
-    <%- include('partials/progression', { actuel: 4 }) %>
+    <p class="souscription">Étape 5 sur 5 — Vérifiez vos informations avant l'envoi définitif.</p>
+    <%- include('partials/progression', { actuel: 5 }) %>
 
     <div class="recap-ligne"><span>Nom complet</span><span><%= d.prenom %> <%= d.nom %></span></div>
     <div class="recap-ligne"><span>Email</span><span><%= d.email %></span></div>
     <div class="recap-ligne"><span>Téléphone</span><span><%= d.telephone %></span></div>
     <div class="recap-ligne"><span>CNI</span><span><%= d.cni %></span></div>
-    <div class="recap-ligne"><span>Client existant</span><span><%= d.client_existant ? 'Oui — ' + (d.numero_compte || '—') : 'Non' %></span></div>
+    <div class="recap-ligne"><span>Numéro de compte</span><span><%= d.numero_compte %></span></div>
+    <div class="recap-ligne"><span>Identité vérifiée</span><span>✅ Confirmée par email</span></div>
     <div class="recap-ligne"><span>Montant demandé</span><span><%= Number(d.montant).toLocaleString('fr-FR') %> FCFA</span></div>
     <div class="recap-ligne"><span>Durée</span><span><%= d.duree %> mois</span></div>
     <div class="recap-ligne"><span>Objet</span><span><%= d.motif %></span></div>

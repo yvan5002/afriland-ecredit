@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // AFRILAND E-CRÉDIT — Portail de demande de crédit à distance
 // Serveur Express (Node.js)
 // ============================================================
@@ -17,20 +17,22 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use((req, res, next) => {
-  if (!req.cookies) req.cookies = {};
+  if (!req.cookies) req.cookies = {}; // filet de sécurité si cookie-parser ne s'exécute pas comme attendu
   next();
 });
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Les documents clients ne sont plus servis publiquement : voir la route
+// sécurisée /agent/documents/:id/:cle (réservée aux agents connectés).
 
 app.use(session({
   secret: process.env.SESSION_SECRET || "cle_secrete_afriland_ecredit_2026",
   resave: false,
   saveUninitialized: false,
-  rolling: true,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 },
+  rolling: true, // prolonge la session tant que le client est actif
+  cookie: { maxAge: 1000 * 60 * 60 * 24 }, // 24h — la reprise réelle passe par le brouillon persistant, pas la session
 }));
 
+// Routes
 app.use("/agent", require("./routes/agent"));
 app.use("/", require("./routes/portail"));
 
@@ -39,5 +41,5 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`>>> Afriland E-Credit - serveur demarre sur http://localhost:${PORT}`);
+  console.log(`>>> Afriland E-Crédit — serveur démarré sur http://localhost:${PORT}`);
 });
