@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
@@ -15,32 +15,32 @@ const {
 // Liste officielle des pieces exigees (identique a l'application interne)
 // ------------------------------------------------------------
 const DOCUMENTS_REQUIS = [
-  { cle: "demande_signee", numero: 1, label: "Demande de crédit signée, adressée au Directeur Général" },
-  { cle: "cni", numero: 2, label: "Photocopie de la CNI en cours de validité" },
+  { cle: "demande_signee", numero: 1, label: "Demande de crÃ©dit signÃ©e, adressÃ©e au Directeur GÃ©nÃ©ral" },
+  { cle: "cni", numero: 2, label: "Photocopie de la CNI en cours de validitÃ©" },
   { cle: "bulletins_paie", numero: 3, label: "3 derniers bulletins de paie" },
-  { cle: "attestation_virement", numero: 4, label: "Attestation de virement irrévocable" },
-  { cle: "attestation_travail", numero: 5, label: "Attestation de travail (ou de présence effective)" },
-  { cle: "contrat_travail", numero: 6, label: "Contrat de travail (secteur privé)" },
-  { cle: "niu", numero: 7, label: "NIU (Numéro d'Identifiant Unique)" },
+  { cle: "attestation_virement", numero: 4, label: "Attestation de virement irrÃ©vocable" },
+  { cle: "attestation_travail", numero: 5, label: "Attestation de travail (ou de prÃ©sence effective)" },
+  { cle: "contrat_travail", numero: 6, label: "Contrat de travail (secteur privÃ©)" },
+  { cle: "niu", numero: 7, label: "NIU (NumÃ©ro d'Identifiant Unique)" },
   { cle: "plan_localisation", numero: 8, label: "Plan de localisation" },
 ];
 
 // ------------------------------------------------------------
 // Reconnaissance automatique du contenu des documents
 // Approche : lecture du texte du PDF (pdf-parse) + recherche de
-// mots-clés propres à chaque pièce. Un document scanné (image,
-// sans couche de texte) ne peut pas être analysé ainsi : il est
-// simplement marqué "à vérifier manuellement" plutôt que rejeté.
+// mots-clÃ©s propres Ã  chaque piÃ¨ce. Un document scannÃ© (image,
+// sans couche de texte) ne peut pas Ãªtre analysÃ© ainsi : il est
+// simplement marquÃ© "Ã  vÃ©rifier manuellement" plutÃ´t que rejetÃ©.
 // ------------------------------------------------------------
 const MOTS_CLES = {
-  demande_signee: ["demande de crédit", "directeur général", "je soussigné", "j'ai l'honneur"],
-  cni: ["carte nationale d'identité", "république du cameroun", "republic of cameroon", "date de naissance"],
-  bulletins_paie: ["bulletin de paie", "bulletin de salaire", "net à payer", "salaire brut"],
-  attestation_virement: ["virement irrévocable", "attestation de virement", "domiciliation"],
-  attestation_travail: ["attestation de travail", "atteste que", "présence effective"],
-  contrat_travail: ["contrat de travail", "employeur", "durée indéterminée", "durée déterminée"],
-  niu: ["numéro d'identifiant unique", " niu ", "contribuable"],
-  plan_localisation: ["plan de localisation", "localisation", "itinéraire"],
+  demande_signee: ["demande de crÃ©dit", "directeur gÃ©nÃ©ral", "je soussignÃ©", "j'ai l'honneur"],
+  cni: ["carte nationale d'identitÃ©", "rÃ©publique du cameroun", "republic of cameroon", "date de naissance"],
+  bulletins_paie: ["bulletin de paie", "bulletin de salaire", "net Ã  payer", "salaire brut"],
+  attestation_virement: ["virement irrÃ©vocable", "attestation de virement", "domiciliation"],
+  attestation_travail: ["attestation de travail", "atteste que", "prÃ©sence effective"],
+  contrat_travail: ["contrat de travail", "employeur", "durÃ©e indÃ©terminÃ©e", "durÃ©e dÃ©terminÃ©e"],
+  niu: ["numÃ©ro d'identifiant unique", " niu ", "contribuable"],
+  plan_localisation: ["plan de localisation", "localisation", "itinÃ©raire"],
 };
 
 async function extraireTexte(buffer) {
@@ -71,7 +71,7 @@ async function verifierDocument(cle, buffer) {
     return { statut: "invalide", details: "Ce fichier PDF est illisible ou corrompu." };
   }
   if (!texte.trim()) {
-    return { statut: "a_verifier", details: "Document scanné (image) — vérification manuelle par l'agent." };
+    return { statut: "a_verifier", details: "Document scannÃ© (image) â€” vÃ©rification manuelle par l'agent." };
   }
 
   const scorePropre = (MOTS_CLES[cle] || []).filter(m => texte.includes(m)).length;
@@ -84,10 +84,10 @@ async function verifierDocument(cle, buffer) {
 
   if (scorePropre === 0 && meilleurScore >= 1) {
     const autreLabel = (DOCUMENTS_REQUIS.find(d => d.cle === meilleurAutre) || {}).label || meilleurAutre;
-    return { statut: "suspect", details: `Ce fichier ressemble plutôt à : « ${autreLabel} ». Vérifiez votre dépôt.` };
+    return { statut: "suspect", details: `Ce fichier ressemble plutÃ´t Ã  : Â« ${autreLabel} Â». VÃ©rifiez votre dÃ©pÃ´t.` };
   }
   if (scorePropre >= 1) return { statut: "reconnu", details: null };
-  return { statut: "a_verifier", details: "Contenu non reconnu automatiquement — vérification manuelle par l'agent." };
+  return { statut: "a_verifier", details: "Contenu non reconnu automatiquement â€” vÃ©rification manuelle par l'agent." };
 }
 
 // ------------------------------------------------------------
@@ -125,13 +125,13 @@ function validerCNI(brut) {
   return /^[A-Z0-9]{9}$/.test(v) ? v : null;
 }
 
-// Numéro de compte Afriland : 11 chiffres (format interne des comptes clients)
+// NumÃ©ro de compte Afriland : 11 chiffres (format interne des comptes clients)
 function validerNumeroCompte(brut) {
   const v = (brut || "").replace(/\s/g, "");
   return /^\d{11}$/.test(v) ? v : null;
 }
 
-// Code de vérification client : 4 à 6 chiffres
+// Code de vÃ©rification client : 4 Ã  6 chiffres
 function validerCodeVerification(brut) {
   const v = (brut || "").trim();
   return /^\d{4,6}$/.test(v) ? v : null;
@@ -146,15 +146,15 @@ function etapeSuivante(d) {
 
 // ------------------------------------------------------------
 // Charge un brouillon existant (cookie brouillon_id) dans la
-// session si celle-ci est vide, ou en crée un nouveau. Permet à
-// un client qui quitte la page et revient (même après un
-// redémarrage du serveur) de reprendre sa demande là où il s'est
-// arrêté — ou de savoir clairement qu'il en démarre une nouvelle.
+// session si celle-ci est vide, ou en crÃ©e un nouveau. Permet Ã 
+// un client qui quitte la page et revient (mÃªme aprÃ¨s un
+// redÃ©marrage du serveur) de reprendre sa demande lÃ  oÃ¹ il s'est
+// arrÃªtÃ© â€” ou de savoir clairement qu'il en dÃ©marre une nouvelle.
 // ------------------------------------------------------------
 function chargerOuCreerBrouillon(req, res, next) {
   if (req.session.demande && req.session.demande.nom) return next();
 
-  const idCookie = req.cookies.brouillon_id;
+  const idCookie = (req.cookies || {}).brouillon_id;
   const brouillon = trouverBrouillon(idCookie);
 
   if (brouillon && !brouillon.termine) {
@@ -194,39 +194,39 @@ router.use("/demande", chargerOuCreerBrouillon);
 // PAGE D'ACCUEIL
 // ============================================================
 router.get("/", (req, res) => {
-  const brouillon = trouverBrouillon(req.cookies.brouillon_id);
+  const brouillon = trouverBrouillon((req.cookies || {}).brouillon_id);
   const enCours = brouillon && !brouillon.termine && brouillon.donnees && brouillon.donnees.nom;
   res.render("accueil", {
-    titre: "Afriland E-Crédit — Demande de crédit en ligne",
+    titre: "Afriland E-CrÃ©dit â€” Demande de crÃ©dit en ligne",
     enCours: !!enCours,
   });
 });
 
 // ============================================================
-// SUIVI D'UNE DEMANDE (statut : en cours / acceptée / refusée)
+// SUIVI D'UNE DEMANDE (statut : en cours / acceptÃ©e / refusÃ©e)
 // ============================================================
 router.get("/suivi", (req, res) => {
-  res.render("suivi", { titre: "Suivre ma demande — Afriland E-Crédit", erreur: null });
+  res.render("suivi", { titre: "Suivre ma demande â€” Afriland E-CrÃ©dit", erreur: null });
 });
 
 router.post("/suivi", (req, res) => {
   const reference = (req.body.reference || "").trim().toUpperCase();
   const demande = trouverParReference(reference);
   if (!demande) {
-    return res.render("suivi", { titre: "Suivre ma demande — Afriland E-Crédit",
-      erreur: "Aucune demande ne correspond à cette référence. Vérifiez votre saisie." });
+    return res.render("suivi", { titre: "Suivre ma demande â€” Afriland E-CrÃ©dit",
+      erreur: "Aucune demande ne correspond Ã  cette rÃ©fÃ©rence. VÃ©rifiez votre saisie." });
   }
   res.redirect("/confirmation/" + demande.reference);
 });
 
 // ============================================================
-// ETAPE 1 — INFORMATIONS PERSONNELLES
+// ETAPE 1 â€” INFORMATIONS PERSONNELLES
 // ============================================================
 router.get("/demande", (req, res) => {
   const reprise = !!req.session.reprise;
   req.session.reprise = false;
   res.render("etape1", {
-    titre: "Vos informations — Afriland E-Crédit", erreur: null,
+    titre: "Vos informations â€” Afriland E-CrÃ©dit", erreur: null,
     donnees: req.session.demande || {}, reprise,
   });
 });
@@ -249,17 +249,17 @@ router.post("/demande/etape1", (req, res) => {
   const cniValide = validerCNI(cni);
   const estClient = client_existant === "oui";
   const rendreErreur = (msg) => res.render("etape1", {
-    titre: "Vos informations — Afriland E-Crédit", erreur: msg, donnees: req.body, reprise: false,
+    titre: "Vos informations â€” Afriland E-CrÃ©dit", erreur: msg, donnees: req.body, reprise: false,
   });
 
   if (!nom || !prenom || !email) {
-    return rendreErreur("Merci de renseigner votre nom, prénom et email.");
+    return rendreErreur("Merci de renseigner votre nom, prÃ©nom et email.");
   }
   if (!telValide) {
-    return rendreErreur("Numéro de téléphone invalide (format camerounais requis : 9 chiffres commençant par 6).");
+    return rendreErreur("NumÃ©ro de tÃ©lÃ©phone invalide (format camerounais requis : 9 chiffres commenÃ§ant par 6).");
   }
   if (!cniValide) {
-    return rendreErreur("Le numéro CNI doit contenir exactement 9 caractères.");
+    return rendreErreur("Le numÃ©ro CNI doit contenir exactement 9 caractÃ¨res.");
   }
 
   let numeroCompteValide = null;
@@ -267,11 +267,11 @@ router.post("/demande/etape1", (req, res) => {
   if (estClient) {
     numeroCompteValide = validerNumeroCompte(numero_compte);
     if (!numeroCompteValide) {
-      return rendreErreur("Le numéro de compte Afriland doit contenir exactement 11 chiffres.");
+      return rendreErreur("Le numÃ©ro de compte Afriland doit contenir exactement 11 chiffres.");
     }
     const codeValide = validerCodeVerification(code_verification);
     if (!codeValide) {
-      return rendreErreur("Merci de définir un code de vérification à 4-6 chiffres pour confirmer que vous êtes bien le titulaire du compte.");
+      return rendreErreur("Merci de dÃ©finir un code de vÃ©rification Ã  4-6 chiffres pour confirmer que vous Ãªtes bien le titulaire du compte.");
     }
     codeHash = bcrypt.hashSync(codeValide, 10);
   }
@@ -287,24 +287,24 @@ router.post("/demande/etape1", (req, res) => {
 });
 
 // ============================================================
-// ETAPE 2 — DETAILS DU PRET
+// ETAPE 2 â€” DETAILS DU PRET
 // ============================================================
 router.get("/demande/pret", (req, res) => {
   if (!req.session.demande || !req.session.demande.nom) return res.redirect("/demande");
-  res.render("etape2", { titre: "Votre demande — Afriland E-Crédit", erreur: null, donnees: req.session.demande });
+  res.render("etape2", { titre: "Votre demande â€” Afriland E-CrÃ©dit", erreur: null, donnees: req.session.demande });
 });
 
 router.post("/demande/pret", (req, res) => {
   const { montant, duree, motif, situation } = req.body;
   const m = parseFloat(montant);
   const rendreErreur = (msg) => res.render("etape2", {
-    titre: "Votre demande — Afriland E-Crédit", erreur: msg, donnees: { ...req.session.demande, montant, duree, motif, situation },
+    titre: "Votre demande â€” Afriland E-CrÃ©dit", erreur: msg, donnees: { ...req.session.demande, montant, duree, motif, situation },
   });
   if (!m || m < 50000 || m > 5000000) {
-    return rendreErreur("Le montant doit être compris entre 50 000 et 5 000 000 FCFA.");
+    return rendreErreur("Le montant doit Ãªtre compris entre 50 000 et 5 000 000 FCFA.");
   }
   if (!duree || !motif || !situation) {
-    return rendreErreur("Merci de compléter tous les champs.");
+    return rendreErreur("Merci de complÃ©ter tous les champs.");
   }
   req.session.demande.montant = m;
   req.session.demande.duree = parseInt(duree);
@@ -315,19 +315,19 @@ router.post("/demande/pret", (req, res) => {
 });
 
 // ============================================================
-// ETAPE 3 — DOCUMENTS (8 pieces, PDF uniquement, verifiees)
+// ETAPE 3 â€” DOCUMENTS (8 pieces, PDF uniquement, verifiees)
 // ============================================================
 router.get("/demande/documents", (req, res) => {
   if (!req.session.demande || !req.session.demande.montant) return res.redirect("/demande");
-  res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS, erreur: null });
+  res.render("etape3", { titre: "Vos documents â€” Afriland E-CrÃ©dit", documents: DOCUMENTS_REQUIS, erreur: null });
 });
 
 router.post("/demande/documents", upload.fields(DOCUMENTS_REQUIS.map(d => ({ name: d.cle, maxCount: 1 }))), async (req, res, next) => {
   try {
     const manquants = DOCUMENTS_REQUIS.filter(d => !req.files || !req.files[d.cle]);
     if (manquants.length) {
-      return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-        erreur: `Pièce(s) manquante(s) : ${manquants.map(d => d.label).join(", ")}` });
+      return res.render("etape3", { titre: "Vos documents â€” Afriland E-CrÃ©dit", documents: DOCUMENTS_REQUIS,
+        erreur: `PiÃ¨ce(s) manquante(s) : ${manquants.map(d => d.label).join(", ")}` });
     }
 
     // Verification du contenu de chaque PDF avant tout enregistrement sur disque
@@ -337,10 +337,10 @@ router.post("/demande/documents", upload.fields(DOCUMENTS_REQUIS.map(d => ({ nam
     }
     const problemes = DOCUMENTS_REQUIS
       .filter(d => resultats[d.cle].statut === "invalide" || resultats[d.cle].statut === "suspect")
-      .map(d => `${d.label} — ${resultats[d.cle].details}`);
+      .map(d => `${d.label} â€” ${resultats[d.cle].details}`);
     if (problemes.length) {
-      return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-        erreur: `Certaines pièces déposées ne correspondent pas à ce qui est attendu :\n${problemes.join(" | ")}` });
+      return res.render("etape3", { titre: "Vos documents â€” Afriland E-CrÃ©dit", documents: DOCUMENTS_REQUIS,
+        erreur: `Certaines piÃ¨ces dÃ©posÃ©es ne correspondent pas Ã  ce qui est attendu :\n${problemes.join(" | ")}` });
     }
 
     const dossierClient = path.join(__dirname, "..", "uploads", req.session.demande.cni + "_" + Date.now());
@@ -369,19 +369,19 @@ router.post("/demande/documents", upload.fields(DOCUMENTS_REQUIS.map(d => ({ nam
 // gestion propre de l'erreur "seul PDF autorise" levee par multer fileFilter
 router.use((err, req, res, next) => {
   if (err && err.message === "SEUL_PDF_AUTORISE") {
-    return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-      erreur: "Seuls les fichiers PDF sont acceptés pour chaque pièce." });
+    return res.render("etape3", { titre: "Vos documents â€” Afriland E-CrÃ©dit", documents: DOCUMENTS_REQUIS,
+      erreur: "Seuls les fichiers PDF sont acceptÃ©s pour chaque piÃ¨ce." });
   }
   next(err);
 });
 
 // ============================================================
-// ETAPE 4 — RECAPITULATIF ET SOUMISSION
+// ETAPE 4 â€” RECAPITULATIF ET SOUMISSION
 // ============================================================
 router.get("/demande/recapitulatif", (req, res) => {
   const d = req.session.demande;
   if (!d || !d.documents) return res.redirect("/demande");
-  res.render("etape4", { titre: "Récapitulatif — Afriland E-Crédit", d, documents: DOCUMENTS_REQUIS });
+  res.render("etape4", { titre: "RÃ©capitulatif â€” Afriland E-CrÃ©dit", d, documents: DOCUMENTS_REQUIS });
 });
 
 router.post("/demande/soumettre", (req, res) => {
@@ -410,7 +410,8 @@ router.post("/demande/soumettre", (req, res) => {
 router.get("/confirmation/:reference", (req, res) => {
   const demande = trouverParReference(req.params.reference);
   if (!demande) return res.redirect("/");
-  res.render("confirmation", { titre: "Ma demande — Afriland E-Crédit", demande });
+  res.render("confirmation", { titre: "Ma demande â€” Afriland E-CrÃ©dit", demande });
 });
 
 module.exports = router;
+
