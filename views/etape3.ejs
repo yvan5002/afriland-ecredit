@@ -6,7 +6,11 @@
     <p class="souscription">Étape 3 sur 4 — Déposez un fichier <strong>PDF</strong> pour chacune des 8 pièces exigées.</p>
     <%- include('partials/progression', { actuel: 3 }) %>
 
-    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+    <div class="info-reprise" style="border-color:var(--gold);">
+      Chaque document est vérifié automatiquement à l'envoi : assurez-vous de déposer le bon fichier au bon endroit.
+    </div>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%- erreur.split('\n').join('<br>') %></div><% } %>
 
     <form method="POST" action="/demande/documents" enctype="multipart/form-data">
       <% documents.forEach(doc => { %>

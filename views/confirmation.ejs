@@ -2,14 +2,36 @@
 
 <div class="container">
   <div class="card confirmation-box">
-    <div class="check">✓</div>
-    <h2>Votre demande a bien été envoyée</h2>
-    <p class="souscription">Un agent Afriland First Bank va examiner votre dossier. Conservez votre numéro de référence pour suivre son traitement.</p>
+
+    <% if (demande.statut === 'acceptee') { %>
+      <div class="check ok">✓</div>
+      <h2>Votre demande a été acceptée</h2>
+      <p class="souscription">Félicitations ! Un conseiller Afriland First Bank va vous contacter pour finaliser la mise en place de votre crédit.</p>
+    <% } else if (demande.statut === 'refusee') { %>
+      <div class="check ko">✕</div>
+      <h2>Votre demande n'a pas pu être acceptée</h2>
+      <p class="souscription">Après étude de votre dossier, nous ne sommes pas en mesure d'y donner une suite favorable pour le moment.</p>
+    <% } else { %>
+      <div class="check">⏳</div>
+      <h2>Votre demande est en cours d'examen</h2>
+      <p class="souscription">Un agent Afriland First Bank va examiner votre dossier. Revenez sur cette page à tout moment avec votre référence pour suivre son traitement.</p>
+    <% } %>
 
     <div class="reference"><%= demande.reference %></div>
 
+    <% if ((demande.statut === 'acceptee' || demande.statut === 'refusee') && demande.commentaire_agent) { %>
+      <div class="commentaire-agent">
+        <strong><%= demande.statut === 'acceptee' ? 'Message de l’agent' : 'Motif' %></strong>
+        <p><%= demande.commentaire_agent %></p>
+      </div>
+    <% } %>
+
     <p style="font-size:13px; color:var(--ink-soft); margin-top:20px;">
-      Vous recevrez une réponse par email et par téléphone. En cas de dossier incomplet, un conseiller vous contactera pour vous accompagner.
+      <% if (demande.statut === 'nouvelle') { %>
+        Vous recevrez une réponse par email et par téléphone. En cas de dossier incomplet, un conseiller vous contactera pour vous accompagner.
+      <% } else if (demande.statut === 'refusee') { %>
+        Vous pourrez soumettre une nouvelle demande ultérieurement. N'hésitez pas à contacter votre agence pour plus d'informations.
+      <% } %>
     </p>
 
     <a href="/" class="btn" style="margin-top:24px;">Retour à l'accueil</a>

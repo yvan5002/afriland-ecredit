@@ -1,6 +1,11 @@
 <%- include('partials/entete') %>
 
 <div class="hero">
+  <% if (enCours) { %>
+    <div class="info-reprise" style="max-width:600px; margin:0 auto 20px;">
+      Vous avez une demande de crédit en cours. <a href="/demande/continuer">Continuer ma demande →</a>
+    </div>
+  <% } %>
   <h1>Faites votre demande de crédit<br>sans vous déplacer en agence</h1>
   <p>Afriland E-Crédit vous permet de constituer et transmettre votre dossier de demande de crédit en ligne, en quelques minutes, où que vous soyez.</p>
   <a href="/demande" class="btn">Commencer ma demande →</a>

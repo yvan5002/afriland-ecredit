@@ -1,0 +1,85 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:720px;">
+  <a href="/agent/tableau-bord" class="lien-retour">← Retour au tableau de bord</a>
+
+  <div class="card">
+    <h2>Demande <%= demande.reference %></h2>
+    <p class="souscription">
+      Statut actuel :
+      <span class="badge badge-<%= demande.statut %>">
+        <% if (demande.statut === 'nouvelle') { %>À traiter<% } %>
+        <% if (demande.statut === 'acceptee') { %>Acceptée<% } %>
+        <% if (demande.statut === 'refusee') { %>Refusée<% } %>
+      </span>
+    </p>
+
+    <h3 class="section-titre">Client</h3>
+    <div class="recap-ligne"><span>Nom complet</span><span><%= demande.prenom %> <%= demande.nom %></span></div>
+    <div class="recap-ligne"><span>Email</span><span><%= demande.email %></span></div>
+    <div class="recap-ligne"><span>Téléphone</span><span><%= demande.telephone %></span></div>
+    <div class="recap-ligne"><span>CNI</span><span><%= demande.cni %></span></div>
+    <div class="recap-ligne"><span>Client existant</span><span><%= demande.client_existant ? 'Oui — n° ' + (demande.numero_compte || '—') : 'Non' %></span></div>
+
+    <% if (demande.client_existant && demande.code_verification_hash) { %>
+      <div class="verif-code-box">
+        <strong>Vérification d'identité</strong>
+        <p>Ce client a défini un code de vérification lors de sa demande. Appelez-le et demandez-lui de vous communiquer ce code pour confirmer qu'il est bien le titulaire du compte, puis saisissez-le ci-dessous.</p>
+        <% if (resultatCode === 'correct') { %>
+          <div class="verif-resultat ok">✅ Code correct — identité confirmée.</div>
+        <% } else if (resultatCode === 'incorrect') { %>
+          <div class="verif-resultat ko">❌ Code incorrect — ne pas valider l'identité sur cette base.</div>
+        <% } %>
+        <form method="POST" action="/agent/demande/<%= demande.id %>/verifier-code" style="display:flex; gap:10px; margin-top:10px;">
+          <input type="text" name="code_saisi" placeholder="Code communiqué par le client" style="flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:8px;">
+          <button type="submit" class="btn secondaire" style="white-space:nowrap;">Vérifier</button>
+        </form>
+      </div>
+    <% } %>
+
+    <h3 class="section-titre">Demande de crédit</h3>
+    <div class="recap-ligne"><span>Montant</span><span><%= Number(demande.montant).toLocaleString('fr-FR') %> FCFA</span></div>
+    <div class="recap-ligne"><span>Durée</span><span><%= demande.duree %> mois</span></div>
+    <div class="recap-ligne"><span>Objet</span><span><%= demande.motif %></span></div>
+    <div class="recap-ligne"><span>Situation professionnelle</span><span><%= demande.situation %></span></div>
+    <div class="recap-ligne"><span>Date de soumission</span><span><%= new Date(demande.date_soumission).toLocaleString('fr-FR') %></span></div>
+
+    <h3 class="section-titre">Pièces jointes</h3>
+    <% Object.keys(demande.documents || {}).forEach(cle => { %>
+      <div class="doc-item">
+        <div class="doc-num">📄</div>
+        <div class="doc-label"><%= demande.documents[cle].nom %></div>
+        <% if (demande.documents[cle].verification === 'reconnu') { %>
+          <span class="badge-verif ok">✓ Reconnu</span>
+        <% } else { %>
+          <span class="badge-verif attention">⚠ À vérifier</span>
+        <% } %>
+        <a href="/uploads/<%= demande.documents[cle].chemin %>" target="_blank" class="lien-voir">Ouvrir →</a>
+      </div>
+    <% }) %>
+
+    <% if (demande.statut === 'nouvelle') { %>
+      <h3 class="section-titre">Décision</h3>
+      <% if (erreur) { %>
+        <div class="erreur"><%= erreur %></div>
+      <% } %>
+      <form method="POST" action="/agent/demande/<%= demande.id %>/decider">
+        <div class="champ">
+          <label>Commentaire (obligatoire)</label>
+          <textarea name="commentaire" rows="3" placeholder="Justifiez votre décision..." required></textarea>
+        </div>
+        <div class="actions">
+          <button type="submit" name="decision" value="refuser" class="btn secondaire">Refuser</button>
+          <button type="submit" name="decision" value="accepter" class="btn">Accepter</button>
+        </div>
+      </form>
+    <% } else { %>
+      <h3 class="section-titre">Décision enregistrée</h3>
+      <div class="recap-ligne"><span>Traité par</span><span><%= demande.agent_nom %></span></div>
+      <div class="recap-ligne"><span>Date</span><span><%= new Date(demande.date_traitement).toLocaleString('fr-FR') %></span></div>
+      <div class="recap-ligne"><span>Commentaire</span><span><%= demande.commentaire_agent %></span></div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

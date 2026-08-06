@@ -12,25 +12,25 @@
       <div class="grid2">
         <div class="champ">
           <label>Montant souhaité (FCFA)</label>
-          <input type="number" name="montant" min="50000" max="5000000" placeholder="Entre 50 000 et 5 000 000" required>
+          <input type="number" name="montant" min="50000" max="5000000" placeholder="Entre 50 000 et 5 000 000" value="<%= donnees.montant || '' %>" required>
         </div>
         <div class="champ">
           <label>Durée (mois)</label>
-          <input type="number" name="duree" min="1" max="60" required>
+          <input type="number" name="duree" min="1" max="60" value="<%= donnees.duree || '' %>" required>
         </div>
       </div>
       <div class="champ">
         <label>Objet du crédit</label>
-        <input type="text" name="motif" placeholder="Ex : achat de matériel professionnel" required>
+        <input type="text" name="motif" placeholder="Ex : achat de matériel professionnel" value="<%= donnees.motif || '' %>" required>
       </div>
       <div class="champ">
         <label>Situation professionnelle</label>
         <select name="situation" required>
           <option value="">— Sélectionner —</option>
-          <option value="salarie">Salarié(e)</option>
-          <option value="independant">Indépendant(e)</option>
-          <option value="fonctionnaire">Fonctionnaire</option>
-          <option value="autre">Autre</option>
+          <option value="salarie" <%= donnees.situation === 'salarie' ? 'selected' : '' %>>Salarié(e)</option>
+          <option value="independant" <%= donnees.situation === 'independant' ? 'selected' : '' %>>Indépendant(e)</option>
+          <option value="fonctionnaire" <%= donnees.situation === 'fonctionnaire' ? 'selected' : '' %>>Fonctionnaire</option>
+          <option value="autre" <%= donnees.situation === 'autre' ? 'selected' : '' %>>Autre</option>
         </select>
       </div>
       <div class="actions">
