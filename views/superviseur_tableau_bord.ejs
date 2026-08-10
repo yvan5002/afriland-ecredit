@@ -1,0 +1,101 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:1020px;">
+
+  <div class="agent-entete">
+    <div>
+      <h2 style="color:var(--red-dark); margin-bottom:4px;">Espace superviseur</h2>
+      <p style="color:var(--ink-soft); font-size:13px;">Connecté(e) en tant que <strong><%= superviseurNom %></strong> — vue d'ensemble, lecture seule</p>
+    </div>
+    <form method="POST" action="/superviseur/deconnexion">
+      <button type="submit" class="btn secondaire">Se déconnecter</button>
+    </form>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-item">
+      <div class="stat-chiffre"><%= stats.total %></div>
+      <div class="stat-label">Demandes reçues</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-chiffre"><%= stats.nouvelle %></div>
+      <div class="stat-label">En attente</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-chiffre"><%= stats.tauxAcceptation %>%</div>
+      <div class="stat-label">Taux d'acceptation</div>
+      <div class="barre-taux"><div class="rempli" style="width:<%= stats.tauxAcceptation %>%;"></div></div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-chiffre"><%= Number(stats.montantAccorde).toLocaleString('fr-FR') %></div>
+      <div class="stat-label">FCFA accordés au total</div>
+    </div>
+  </div>
+
+  <% if (stats.parAgent.length) { %>
+    <div class="card" style="padding:24px; margin-bottom:24px;">
+      <div class="section-titre" style="margin-top:0;">Décisions par agent</div>
+      <table class="table-demandes">
+        <thead>
+          <tr><th>Agent</th><th>Acceptées</th><th>Refusées</th><th>Total traité</th></tr>
+        </thead>
+        <tbody>
+          <% stats.parAgent.forEach(a => { %>
+            <tr>
+              <td><%= a.agent_nom %></td>
+              <td><%= a.acceptee %></td>
+              <td><%= a.refusee %></td>
+              <td><%= a.acceptee + a.refusee %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <% if (!demandes.length) { %>
+    <div class="card" style="text-align:center; color:var(--ink-soft);">
+      Aucune demande n'a encore été soumise.
+    </div>
+  <% } else { %>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <table class="table-demandes">
+        <thead>
+          <tr>
+            <th>Référence</th>
+            <th>Client</th>
+            <th>Montant</th>
+            <th>Objet</th>
+            <th>Date</th>
+            <th>Agent</th>
+            <th>Statut</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% demandes.forEach(d => { %>
+            <tr>
+              <td class="mono"><%= d.reference %></td>
+              <td><%= d.prenom %> <%= d.nom %></td>
+              <td><%= Number(d.montant).toLocaleString('fr-FR') %> FCFA</td>
+              <td><%= d.motif %></td>
+              <td><%= new Date(d.date_soumission).toLocaleDateString('fr-FR') %></td>
+              <td><%= d.agent_nom || '—' %></td>
+              <td>
+                <span class="badge badge-<%= d.statut %>">
+                  <% if (d.statut === 'nouvelle') { %>À traiter<% } %>
+                  <% if (d.statut === 'acceptee') { %>Acceptée<% } %>
+                  <% if (d.statut === 'refusee') { %>Refusée<% } %>
+                </span>
+              </td>
+              <td><a href="/superviseur/demande/<%= d.id %>" class="lien-voir">Voir →</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+</div>
+
+<%- include('partials/pied') %>

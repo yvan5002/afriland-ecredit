@@ -1,58 +1,110 @@
+/* ============================================================
+   AFRILAND E-CRÉDIT — identité visuelle
+   Palette : rouge/or Afriland, encre chaude, papier crème.
+   Typo : Fraunces (titres, avec caractère) + Manrope (texte).
+   Signature : motif losangé tissé (clin d'œil textile ouest-
+   africain) utilisé en filigrane sur l'en-tête, le héros et
+   le pied de page — jamais décoratif au point de nuire à la
+   lisibilité d'un service bancaire.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
 :root{
   --red: #C41230; --red-dark: #7C0A1E; --gold: #B4893F; --gold-dark: #8C6A2E;
-  --ink: #211712; --ink-soft: #6E5F55; --paper: #FBF8F3; --line: #E8DFD1;
+  --gold-pale:#F4E6C8;
+  --ink: #211712; --ink-soft: #6E5F55; --paper: #FBF8F3; --paper-deep:#F3ECDD; --line: #E8DFD1;
   --green: #1E7A52; --green-pale: #E7F3EA;
-  --font: 'Segoe UI', Arial, sans-serif;
+  --font: 'Manrope', 'Segoe UI', Arial, sans-serif;
+  --font-titre: 'Fraunces', Georgia, serif;
+
+  /* Motif losangé (SVG en filigrane) — deux variantes, or-sur-rouge et or-sur-crème */
+  --motif-or-sur-rouge: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23E7C77E' stroke-width='1' opacity='0.35'%3E%3Cpath d='M32 2 L62 32 L32 62 L2 32 Z'/%3E%3Cpath d='M32 18 L46 32 L32 46 L18 32 Z'/%3E%3C/g%3E%3C/svg%3E");
+  --motif-or-sur-creme: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23B4893F' stroke-width='1' opacity='0.16'%3E%3Cpath d='M32 2 L62 32 L32 62 L2 32 Z'/%3E%3Cpath d='M32 18 L46 32 L32 46 L18 32 Z'/%3E%3C/g%3E%3C/svg%3E");
 }
 *{box-sizing:border-box; margin:0; padding:0;}
-body{font-family:var(--font); background:var(--paper); color:var(--ink); line-height:1.55;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font); background:var(--paper); color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased;}
 a{color:inherit; text-decoration:none;}
+h1,h2,h3{font-family:var(--font-titre);}
+:focus-visible{outline:2.5px solid var(--gold-dark); outline-offset:2px;}
 
-.topbar{background:linear-gradient(120deg, var(--red-dark), var(--red)); color:#fff; padding:16px 6%;
-  display:flex; align-items:center; gap:14px; box-shadow:0 2px 10px -4px rgba(0,0,0,.3);}
-.topbar .logo-mark{width:42px; height:42px; border-radius:50%; background:#fff; display:flex; align-items:center;
-  justify-content:center; color:var(--red); font-weight:800; font-size:20px; flex-shrink:0;}
-.topbar .brand-text strong{display:block; font-size:17px;}
-.topbar .brand-text small{display:block; font-size:11px; opacity:.85; letter-spacing:.5px;}
+/* ---------------- En-tête ---------------- */
+.topbar{
+  background:
+    var(--motif-or-sur-rouge),
+    linear-gradient(120deg, var(--red-dark), var(--red));
+  background-blend-mode:overlay;
+  color:#fff; padding:18px 6%;
+  display:flex; align-items:center; gap:14px; box-shadow:0 2px 14px -6px rgba(0,0,0,.4);
+  position:relative;
+}
+.topbar::after{content:''; position:absolute; left:0; right:0; bottom:0; height:3px;
+  background:linear-gradient(90deg, var(--gold), var(--gold-dark), var(--gold));}
+.topbar .logo-mark{width:44px; height:44px; border-radius:50%; background:#fff; display:flex; align-items:center;
+  justify-content:center; color:var(--red); font-weight:800; font-size:20px; font-family:var(--font-titre); flex-shrink:0;
+  box-shadow:0 3px 10px -3px rgba(0,0,0,.35);}
+.topbar .brand-text strong{display:block; font-size:18px; font-family:var(--font-titre); font-weight:600; letter-spacing:.2px;}
+.topbar .brand-text small{display:block; font-size:10.5px; opacity:.85; letter-spacing:1.2px; margin-top:1px;}
+.topbar .lien-suivi{margin-left:auto; font-size:12px; color:#fff; opacity:.9; border:1px solid rgba(255,255,255,.45);
+  padding:7px 16px; border-radius:20px; transition:background .15s ease;}
+.topbar .lien-suivi:hover{background:rgba(255,255,255,.12);}
 
 .container{max-width:760px; margin:0 auto; padding:40px 20px 80px;}
 
-.hero{text-align:center; padding:50px 6% 30px;}
-.hero h1{font-size:32px; color:var(--red-dark); margin-bottom:14px; line-height:1.25;}
-.hero p{font-size:16px; color:var(--ink-soft); max-width:600px; margin:0 auto 28px;}
-.btn{display:inline-block; background:linear-gradient(120deg, var(--red), var(--red-dark)); color:#fff;
-  padding:14px 34px; border-radius:30px; font-weight:700; font-size:15px; border:none; cursor:pointer;
-  box-shadow:0 8px 20px -8px rgba(196,18,48,.5); transition:transform .15s ease;}
-.btn:hover{transform:translateY(-2px);}
-.btn.secondaire{background:#fff; color:var(--red-dark); border:1.5px solid var(--red);}
+/* ---------------- Héros (accueil) ---------------- */
+.hero{
+  text-align:center; padding:64px 6% 40px; position:relative; overflow:hidden;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, var(--gold-pale) 0%, transparent 65%),
+    var(--motif-or-sur-creme);
+}
+.hero .eyebrow{display:inline-flex; align-items:center; gap:8px; font-size:11px; font-weight:700; letter-spacing:1.4px;
+  text-transform:uppercase; color:var(--gold-dark); background:#fff; border:1px solid var(--gold-pale);
+  padding:7px 16px; border-radius:20px; margin-bottom:22px;}
+.hero .eyebrow svg{width:13px; height:13px;}
+.hero h1{font-size:38px; font-weight:600; color:var(--red-dark); margin-bottom:16px; line-height:1.22; letter-spacing:-.3px;}
+.hero p{font-size:16px; color:var(--ink-soft); max-width:600px; margin:0 auto 30px;}
 
-.cartes{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:40px;}
-.carte{background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; text-align:center;}
-.carte .num{width:32px; height:32px; border-radius:50%; background:var(--gold); color:#fff; font-weight:800;
-  display:flex; align-items:center; justify-content:center; margin:0 auto 10px; font-size:14px;}
-.carte h3{font-size:14px; color:var(--red-dark); margin-bottom:6px;}
+.btn{display:inline-flex; align-items:center; gap:8px; background:linear-gradient(120deg, var(--red), var(--red-dark)); color:#fff;
+  padding:14px 34px; border-radius:30px; font-weight:700; font-size:15px; border:none; cursor:pointer;
+  box-shadow:0 10px 24px -10px rgba(124,10,30,.55); transition:transform .15s ease, box-shadow .15s ease; font-family:var(--font);}
+.btn:hover{transform:translateY(-2px); box-shadow:0 14px 28px -10px rgba(124,10,30,.6);}
+.btn.secondaire{background:#fff; color:var(--red-dark); border:1.5px solid var(--red); box-shadow:none;}
+
+.cartes{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:44px; text-align:left;}
+.carte{background:#fff; border:1px solid var(--line); border-radius:14px; padding:22px; text-align:center;
+  box-shadow:0 10px 26px -18px rgba(33,23,18,.35); transition:transform .15s ease;}
+.carte:hover{transform:translateY(-3px);}
+.carte .num{width:34px; height:34px; border-radius:50%; background:linear-gradient(140deg, var(--gold), var(--gold-dark)); color:#fff; font-weight:800;
+  display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:14px; font-family:var(--font-titre);}
+.carte h3{font-size:14.5px; color:var(--red-dark); margin-bottom:6px; font-weight:600;}
 .carte p{font-size:12.5px; color:var(--ink-soft);}
 
-.card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:32px; box-shadow:0 4px 20px -12px rgba(0,0,0,.15);}
-.card h2{color:var(--red-dark); font-size:22px; margin-bottom:6px;}
+/* ---------------- Carte formulaire ---------------- */
+.card{background:#fff; border:1px solid var(--line); border-radius:16px; padding:34px;
+  box-shadow:0 14px 40px -22px rgba(33,23,18,.4);}
+.card h2{color:var(--red-dark); font-size:23px; margin-bottom:6px; font-weight:600;}
 .card .souscription{color:var(--ink-soft); font-size:13.5px; margin-bottom:26px;}
 
 .etapes{display:flex; justify-content:space-between; margin-bottom:30px; position:relative;}
 .etapes::before{content:''; position:absolute; top:14px; left:5%; right:5%; height:2px; background:var(--line); z-index:0;}
 .etape{position:relative; z-index:1; text-align:center; flex:1;}
 .etape .rond{width:30px; height:30px; border-radius:50%; background:#fff; border:2px solid var(--line);
-  display:flex; align-items:center; justify-content:center; margin:0 auto 6px; font-size:12px; font-weight:700; color:var(--ink-soft);}
+  display:flex; align-items:center; justify-content:center; margin:0 auto 6px; font-size:12px; font-weight:700; color:var(--ink-soft);
+  transition:all .2s ease;}
 .etape.fait .rond{background:var(--green); border-color:var(--green); color:#fff;}
-.etape.actif .rond{background:var(--red); border-color:var(--red); color:#fff;}
+.etape.actif .rond{background:var(--red); border-color:var(--red); color:#fff; box-shadow:0 0 0 4px rgba(196,18,48,.15);}
 .etape span{font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.3px;}
 .etape.actif span{color:var(--red-dark); font-weight:700;}
 
 .champ{margin-bottom:18px;}
 .champ label{display:block; font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase;
   letter-spacing:.5px; margin-bottom:6px;}
-.champ input, .champ select, .champ textarea{width:100%; padding:11px 13px; border:1px solid var(--line);
-  border-radius:8px; font-size:14px; font-family:var(--font); background:var(--paper);}
-.champ input:focus, .champ select:focus{outline:none; border-color:var(--red); background:#fff;}
+.champ input, .champ select, .champ textarea{width:100%; padding:12px 13px; border:1px solid var(--line);
+  border-radius:9px; font-size:14px; font-family:var(--font); background:var(--paper); transition:border-color .15s ease, background .15s ease;}
+.champ input:focus, .champ select:focus, .champ textarea:focus{outline:none; border-color:var(--gold-dark); background:#fff;
+  box-shadow:0 0 0 3px rgba(180,137,63,.15);}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
 .radio-group{display:flex; gap:20px; margin-top:4px;}
 .radio-group label{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:400; text-transform:none; color:var(--ink);}
@@ -75,20 +127,22 @@ a{color:inherit; text-decoration:none;}
 .actions{display:flex; justify-content:space-between; margin-top:28px; gap:12px;}
 
 .confirmation-box{text-align:center; padding:20px;}
-.confirmation-box .check{width:70px; height:70px; border-radius:50%; background:var(--green-pale); color:var(--green);
+.confirmation-box .check{width:74px; height:74px; border-radius:50%; background:var(--green-pale); color:var(--green);
   display:flex; align-items:center; justify-content:center; font-size:34px; margin:0 auto 20px;}
 .reference{background:var(--paper); border:1.5px dashed var(--gold); border-radius:10px; padding:16px;
   font-family:monospace; font-size:20px; font-weight:700; color:var(--red-dark); margin:20px 0; letter-spacing:1px;}
 
-footer{text-align:center; padding:30px 20px; font-size:11px; color:var(--ink-soft);}
+footer{text-align:center; padding:26px 20px 30px; font-size:11px; color:var(--ink-soft); position:relative;}
+footer::before{content:''; display:block; height:6px; margin:0 auto 24px; max-width:180px; border-radius:3px;
+  background:var(--motif-or-sur-creme); background-size:24px 24px; opacity:.9;}
 
-/* ---------------- Espace agent ---------------- */
+/* ---------------- Espace agent / superviseur ---------------- */
 .agent-entete{display:flex; justify-content:space-between; align-items:center; padding:30px 0 20px;}
 .agent-entete .btn.secondaire{padding:9px 20px; font-size:13px;}
 
 .agent-compteurs{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px;}
 .compteur-item{background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center;}
-.compteur-item .compteur-chiffre{font-size:26px; font-weight:800; color:var(--red-dark);}
+.compteur-item .compteur-chiffre{font-size:27px; font-weight:800; color:var(--red-dark); font-family:var(--font-titre);}
 .compteur-item.ok .compteur-chiffre{color:var(--green);}
 .compteur-item.refus .compteur-chiffre{color:var(--red);}
 .compteur-item .compteur-label{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.4px; margin-top:4px;}
@@ -114,7 +168,7 @@ footer{text-align:center; padding:30px 20px; font-size:11px; color:var(--ink-sof
 .lien-retour{display:inline-block; margin:24px 0 0; font-size:13px; color:var(--ink-soft); font-weight:600;}
 
 .section-titre{font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--gold-dark);
-  margin:26px 0 10px; padding-top:16px; border-top:1px solid var(--line);}
+  margin:26px 0 10px; padding-top:16px; border-top:1px solid var(--line); font-weight:700;}
 .card > .section-titre:first-of-type{border-top:none; padding-top:0; margin-top:20px;}
 
 /* ---------------- Reprise / bannieres info ---------------- */
@@ -141,11 +195,21 @@ footer{text-align:center; padding:30px 20px; font-size:11px; color:var(--ink-sof
 .commentaire-agent strong{font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--gold-dark);}
 .commentaire-agent p{font-size:13.5px; margin-top:6px; color:var(--ink);}
 
+/* ---------------- Statistiques superviseur ---------------- */
+.stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:26px;}
+.stat-item{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; text-align:center;}
+.stat-item .stat-chiffre{font-size:24px; font-weight:800; color:var(--red-dark); font-family:var(--font-titre);}
+.stat-item .stat-label{font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.4px; margin-top:4px;}
+.barre-taux{height:8px; border-radius:5px; background:var(--line); overflow:hidden; margin-top:8px;}
+.barre-taux .rempli{height:100%; background:linear-gradient(90deg, var(--green), #2E9A6E); border-radius:5px;}
+
 @media (max-width:640px){
   .cartes{grid-template-columns:1fr;}
   .grid2{grid-template-columns:1fr;}
   .card{padding:22px;}
   .agent-compteurs{grid-template-columns:1fr;}
+  .stat-grid{grid-template-columns:1fr 1fr;}
   .table-demandes{font-size:12px;}
   .table-demandes th, .table-demandes td{padding:10px;}
+  .hero h1{font-size:28px;}
 }

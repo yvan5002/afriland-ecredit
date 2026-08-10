@@ -90,8 +90,46 @@ function supprimerBrouillon(id) {
   db.get("brouillons").remove({ id }).write();
 }
 
+// ------------------------------------------------------------
+// Vue d'ensemble — réservée à l'espace superviseur : toutes les
+// demandes tous statuts confondus, plus quelques agrégats utiles
+// pour le pilotage (volume traité, taux d'acceptation, montants).
+// ------------------------------------------------------------
+function listerToutesDemandes() {
+  return db.get("demandes").sortBy("date_soumission").reverse().value();
+}
+
+function statistiquesGlobales() {
+  const toutes = db.get("demandes").value();
+  const total = toutes.length;
+  const nouvelle = toutes.filter(d => d.statut === "nouvelle").length;
+  const acceptee = toutes.filter(d => d.statut === "acceptee").length;
+  const refusee = toutes.filter(d => d.statut === "refusee").length;
+  const traitees = acceptee + refusee;
+  const tauxAcceptation = traitees ? Math.round((acceptee / traitees) * 100) : 0;
+  const montantTotalDemande = toutes.reduce((s, d) => s + (Number(d.montant) || 0), 0);
+  const montantAccorde = toutes
+    .filter(d => d.statut === "acceptee")
+    .reduce((s, d) => s + (Number(d.montant) || 0), 0);
+
+  const parAgent = {};
+  toutes.forEach(d => {
+    if (!d.agent_nom) return;
+    if (!parAgent[d.agent_nom]) parAgent[d.agent_nom] = { agent_nom: d.agent_nom, acceptee: 0, refusee: 0 };
+    if (d.statut === "acceptee") parAgent[d.agent_nom].acceptee += 1;
+    if (d.statut === "refusee") parAgent[d.agent_nom].refusee += 1;
+  });
+
+  return {
+    total, nouvelle, acceptee, refusee, traitees, tauxAcceptation,
+    montantTotalDemande, montantAccorde,
+    parAgent: Object.values(parAgent),
+  };
+}
+
 module.exports = {
   db, creerDemande, trouverParReference, trouverParId,
   listerDemandesParStatut, compterParStatut, enregistrerDecision,
   sauvegarderBrouillon, trouverBrouillon, supprimerBrouillon,
+  listerToutesDemandes, statistiquesGlobales,
 };

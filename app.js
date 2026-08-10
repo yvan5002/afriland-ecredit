@@ -34,6 +34,9 @@ app.use(session({
 
 // Routes
 app.use("/agent", require("./routes/agent"));
+// L'espace superviseur n'est lié depuis aucune page publique : on y accède
+// uniquement en connaissant directement l'adresse /superviseur/connexion.
+app.use("/superviseur", require("./routes/superviseur"));
 app.use("/", require("./routes/portail"));
 
 app.use((req, res) => {
