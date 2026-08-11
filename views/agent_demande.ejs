@@ -33,6 +33,34 @@
     <div class="recap-ligne"><span>Situation professionnelle</span><span><%= demande.situation %></span></div>
     <div class="recap-ligne"><span>Date de soumission</span><span><%= new Date(demande.date_soumission).toLocaleString('fr-FR') %></span></div>
 
+    <h3 class="section-titre">Évaluation automatique du risque</h3>
+    <% if (demande.score_risque_pourcentage === null || demande.score_risque_pourcentage === undefined) { %>
+      <div class="info-reprise">Aucune évaluation disponible pour ce dossier (profil incomplet).</div>
+    <% } else { %>
+      <% const pct = demande.score_risque_pourcentage; %>
+      <% const niveau = pct >= 60 ? 'ko' : (pct >= 30 ? 'attention' : 'ok'); %>
+      <div class="verif-code-box">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <strong>Risque de défaut de paiement estimé</strong>
+          <span class="verif-resultat <%= niveau === 'ko' ? 'ko' : 'ok' %>" style="font-size:18px;"><%= pct %>%</span>
+        </div>
+        <div class="barre-taux" style="margin-bottom:10px;">
+          <div class="rempli" style="width:<%= pct %>%; background:<%= niveau === 'ko' ? 'linear-gradient(90deg, var(--red), var(--red-dark))' : (niveau === 'attention' ? 'linear-gradient(90deg, var(--gold), var(--gold-dark))' : 'linear-gradient(90deg, var(--green), #2E9A6E)') %>;"></div>
+        </div>
+        <% if (demande.score_risque_facteurs && demande.score_risque_facteurs.length) { %>
+          <p style="font-size:11.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--gold-dark); margin-bottom:6px;">Facteurs qui pèsent le plus dans ce score</p>
+          <ul style="margin:0; padding-left:18px; font-size:13px; color:var(--ink);">
+            <% demande.score_risque_facteurs.forEach(f => { %>
+              <li><%= f.nom %> <span style="color:var(--ink-soft);">(<%= f.poids > 0 ? '+' : '' %><%= f.poids.toFixed(2) %>)</span></li>
+            <% }) %>
+          </ul>
+        <% } %>
+        <p style="font-size:11.5px; color:var(--ink-soft); margin-top:10px;">
+          Estimation statistique fournie à titre indicatif — elle n'est pas un motif automatique de refus, la décision finale reste la vôtre.
+        </p>
+      </div>
+    <% } %>
+
     <h3 class="section-titre">Pièces jointes</h3>
     <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">
       L'analyse automatique ci-dessous est <strong>indicative</strong> : elle vous aide à repérer un document

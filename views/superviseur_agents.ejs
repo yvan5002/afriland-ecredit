@@ -1,0 +1,83 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:820px;">
+  <a href="/superviseur/tableau-bord" class="lien-retour">← Retour au tableau de bord</a>
+
+  <div class="agent-entete">
+    <div>
+      <h2 style="color:var(--red-dark); margin-bottom:4px;">Gestion des agents</h2>
+      <p style="color:var(--ink-soft); font-size:13px;">Créez des comptes agents, ou désactivez l'accès d'un agent à tout moment.</p>
+    </div>
+  </div>
+
+  <% if (succes) { %>
+    <div class="verif-resultat ok" style="margin-bottom:20px;">✅ <%= succes %></div>
+  <% } %>
+
+  <div class="card" style="margin-bottom:24px;">
+    <h3 class="section-titre" style="margin-top:0;">Créer un nouvel agent</h3>
+    <% if (erreur) { %><div class="erreur"><%= erreur %></div><% } %>
+    <form method="POST" action="/superviseur/agents">
+      <div class="grid2">
+        <div class="champ">
+          <label>Nom complet</label>
+          <input type="text" name="nom" placeholder="Ex : Aïcha Njoya" required>
+        </div>
+        <div class="champ">
+          <label>Identifiant de connexion</label>
+          <input type="text" name="identifiant" placeholder="Ex : anjoya" required>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Mot de passe (6 caractères minimum)</label>
+        <input type="password" name="mdp" minlength="6" required>
+      </div>
+      <div class="actions" style="justify-content:flex-end;">
+        <button type="submit" class="btn">Créer l'agent</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table class="table-demandes">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Identifiant</th>
+          <th>Créé le</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% agents.forEach(a => { %>
+          <tr>
+            <td><%= a.nom %></td>
+            <td class="mono"><%= a.identifiant %></td>
+            <td><%= new Date(a.date_creation).toLocaleDateString('fr-FR') %></td>
+            <td>
+              <% if (a.actif) { %>
+                <span class="badge badge-acceptee">Actif</span>
+              <% } else { %>
+                <span class="badge badge-refusee">Désactivé</span>
+              <% } %>
+            </td>
+            <td>
+              <% if (a.actif) { %>
+                <form method="POST" action="/superviseur/agents/<%= a.id %>/desactiver" onsubmit="return confirm('Déconnecter et désactiver l\'accès de ' + '<%= a.nom %>' + ' ?');">
+                  <button type="submit" class="btn secondaire" style="padding:6px 14px; font-size:12px;">Déconnecter</button>
+                </form>
+              <% } else { %>
+                <form method="POST" action="/superviseur/agents/<%= a.id %>/reactiver">
+                  <button type="submit" class="btn secondaire" style="padding:6px 14px; font-size:12px;">Réactiver</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

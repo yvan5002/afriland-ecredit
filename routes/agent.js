@@ -4,18 +4,26 @@ const path = require("path");
 const fs = require("fs");
 const {
   trouverParId, listerDemandesParStatut, compterParStatut, enregistrerDecision,
+  verifierMdpAgent, trouverAgentParIdentifiant,
 } = require("../db/database");
 
 // ------------------------------------------------------------
-// Compte agent de démonstration (identique à la version Flask)
+// Les agents sont désormais gérés depuis l'espace superviseur
+// (création, désactivation) et stockés en base — voir db/database.js
+// (un premier agent "agent" / "afriland2026" est créé automatiquement
+// au tout premier démarrage pour ne rien casser).
+//
+// Un agent désactivé ("déconnecté" par le superviseur) est bloqué dès
+// sa prochaine requête, même s'il avait déjà une session active.
 // ------------------------------------------------------------
-const AGENT_IDENTIFIANT = "agent";
-const AGENT_MDP = "afriland2026";
-const AGENT_NOM = "Agent Afriland";
-
 function exigerAgent(req, res, next) {
-  if (req.session.agentConnecte) return next();
-  return res.redirect("/agent/connexion");
+  if (!req.session.agentConnecte) return res.redirect("/agent/connexion");
+  const agent = trouverAgentParIdentifiant(req.session.agentIdentifiant);
+  if (!agent || !agent.actif) {
+    req.session.agentConnecte = null;
+    return res.redirect("/agent/connexion?deconnecte=1");
+  }
+  next();
 }
 
 // ============================================================
@@ -23,14 +31,19 @@ function exigerAgent(req, res, next) {
 // ============================================================
 router.get("/connexion", (req, res) => {
   if (req.session.agentConnecte) return res.redirect("/agent/tableau-bord");
-  res.render("agent_connexion", { titre: "Espace agent — Afriland E-Crédit", erreur: null });
+  res.render("agent_connexion", {
+    titre: "Espace agent — Afriland E-Crédit",
+    erreur: req.query.deconnecte ? "Votre accès a été désactivé par un superviseur." : null,
+  });
 });
 
 router.post("/connexion", (req, res) => {
   const { identifiant, mdp } = req.body;
-  if (identifiant === AGENT_IDENTIFIANT && mdp === AGENT_MDP) {
+  const agent = verifierMdpAgent(identifiant, mdp);
+  if (agent) {
     req.session.agentConnecte = true;
-    req.session.agentNom = AGENT_NOM;
+    req.session.agentIdentifiant = agent.identifiant;
+    req.session.agentNom = agent.nom;
     return res.redirect("/agent/tableau-bord");
   }
   res.render("agent_connexion", {
@@ -146,6 +159,4 @@ router.post("/demande/:id/decider", exigerAgent, (req, res) => {
 });
 
 module.exports = router;
-module.exports.AGENT_IDENTIFIANT = AGENT_IDENTIFIANT;
-module.exports.AGENT_MDP = AGENT_MDP;
-module.exports.AGENT_NOM = AGENT_NOM;
+module.exports.exigerAgent = exigerAgent;

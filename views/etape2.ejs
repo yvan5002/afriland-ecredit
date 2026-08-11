@@ -3,12 +3,14 @@
 <div class="container">
   <div class="card">
     <h2>Votre demande de crédit</h2>
-    <p class="souscription">Étape 3 sur 5 — Montant, durée et objet du financement souhaité.</p>
+    <p class="souscription">Étape 3 sur 5 — Montant, durée, objet et profil pour l'évaluation de votre dossier.</p>
     <%- include('partials/progression', { actuel: 3 }) %>
 
-    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur.split('\n').join('<br>') %></div><% } %>
 
     <form method="POST" action="/demande/pret">
+
+      <div class="section-titre">Le crédit demandé</div>
       <div class="grid2">
         <div class="champ">
           <label>Montant souhaité (FCFA)</label>
@@ -20,8 +22,17 @@
         </div>
       </div>
       <div class="champ">
-        <label>Objet du crédit</label>
+        <label>Objet du crédit (description libre)</label>
         <input type="text" name="motif" placeholder="Ex : achat de matériel professionnel" value="<%= donnees.motif || '' %>" required>
+      </div>
+      <div class="champ">
+        <label>Catégorie de l'objet du crédit</label>
+        <select name="objet_credit" required>
+          <option value="">— Sélectionner —</option>
+          <% categories.objet_credit.forEach(o => { %>
+            <option value="<%= o.valeur %>" <%= donnees.objet_credit === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+          <% }) %>
+        </select>
       </div>
       <div class="champ">
         <label>Situation professionnelle</label>
@@ -33,6 +44,167 @@
           <option value="autre" <%= donnees.situation === 'autre' ? 'selected' : '' %>>Autre</option>
         </select>
       </div>
+
+      <div class="section-titre">Votre profil (pour l'évaluation automatique du dossier)</div>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">
+        Ces informations alimentent notre outil d'aide à la décision ; elles sont toujours vérifiées par un agent avant toute réponse.
+      </p>
+
+      <div class="grid2">
+        <div class="champ">
+          <label>Âge</label>
+          <input type="number" name="age" min="18" max="90" value="<%= donnees.age || '' %>" required>
+        </div>
+        <div class="champ">
+          <label>Personnes à votre charge</label>
+          <input type="number" name="nb_personnes_a_charge" min="0" max="15" value="<%= donnees.nb_personnes_a_charge || 0 %>" required>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Ancienneté à votre résidence actuelle (années)</label>
+          <input type="number" name="anciennete_residence" min="0" max="60" value="<%= donnees.anciennete_residence || 0 %>" required>
+        </div>
+        <div class="champ">
+          <label>Crédits déjà en cours actuellement</label>
+          <input type="number" name="nb_credits_existants" min="0" max="10" value="<%= donnees.nb_credits_existants || 0 %>" required>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Part approximative du remboursement mensuel dans vos revenus</label>
+        <select name="taux_mensualite_pct_revenu" required>
+          <option value="">— Sélectionner —</option>
+          <option value="1" <%= donnees.taux_mensualite_pct_revenu === '1' ? 'selected' : '' %>>Moins de 10 % de mes revenus</option>
+          <option value="2" <%= donnees.taux_mensualite_pct_revenu === '2' ? 'selected' : '' %>>Environ 10 à 20 % de mes revenus</option>
+          <option value="3" <%= donnees.taux_mensualite_pct_revenu === '3' ? 'selected' : '' %>>Environ 20 à 30 % de mes revenus</option>
+          <option value="4" <%= donnees.taux_mensualite_pct_revenu === '4' ? 'selected' : '' %>>Plus de 30 % de mes revenus</option>
+        </select>
+      </div>
+
+      <div class="grid2">
+        <div class="champ">
+          <label>Compte courant chez Afriland</label>
+          <select name="statut_compte_courant" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.statut_compte_courant.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.statut_compte_courant === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="champ">
+          <label>Historique de crédit</label>
+          <select name="historique_credit" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.historique_credit.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.historique_credit === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="champ">
+          <label>Niveau d'épargne</label>
+          <select name="epargne" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.epargne.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.epargne === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="champ">
+          <label>Ancienneté dans l'emploi actuel</label>
+          <select name="anciennete_emploi" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.anciennete_emploi.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.anciennete_emploi === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="champ">
+          <label>Niveau de qualification professionnelle</label>
+          <select name="profession" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.profession.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.profession === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="champ">
+          <label>Type de logement</label>
+          <select name="logement" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.logement.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.logement === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="champ">
+          <label>Patrimoine principal</label>
+          <select name="patrimoine" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.patrimoine.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.patrimoine === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="champ">
+          <label>Autre crédit en cours ailleurs</label>
+          <select name="autres_plans_credit" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.autres_plans_credit.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.autres_plans_credit === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="champ">
+          <label>Co-demandeur ou garant sur ce dossier</label>
+          <select name="autres_debiteurs_garants" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.autres_debiteurs_garants.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.autres_debiteurs_garants === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="champ">
+          <label>Situation personnelle</label>
+          <select name="situation_personnelle_sexe" required>
+            <option value="">— Sélectionner —</option>
+            <% categories.situation_personnelle_sexe.forEach(o => { %>
+              <option value="<%= o.valeur %>" <%= donnees.situation_personnelle_sexe === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="champ">
+          <label>Joignable sur une ligne fixe</label>
+          <select name="telephone" required>
+            <option value="">— Sélectionner —</option>
+            <option value="oui" <%= donnees.telephone === 'oui' ? 'selected' : '' %>>Oui</option>
+            <option value="non" <%= donnees.telephone === 'non' ? 'selected' : '' %>>Non</option>
+          </select>
+        </div>
+        <div class="champ">
+          <label>Résident permanent au Cameroun</label>
+          <select name="travailleur_etranger" required>
+            <option value="">— Sélectionner —</option>
+            <option value="non" <%= donnees.travailleur_etranger === 'non' ? 'selected' : '' %>>Oui, résident permanent</option>
+            <option value="oui" <%= donnees.travailleur_etranger === 'oui' ? 'selected' : '' %>>Non, statut temporaire</option>
+          </select>
+        </div>
+      </div>
+
       <div class="actions">
         <a href="/demande" class="btn secondaire">← Retour</a>
         <button type="submit" class="btn">Continuer →</button>

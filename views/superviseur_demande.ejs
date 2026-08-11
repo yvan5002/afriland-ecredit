@@ -28,6 +28,13 @@
     <div class="recap-ligne"><span>Situation professionnelle</span><span><%= demande.situation %></span></div>
     <div class="recap-ligne"><span>Date de soumission</span><span><%= new Date(demande.date_soumission).toLocaleString('fr-FR') %></span></div>
 
+    <h3 class="section-titre">Évaluation automatique du risque</h3>
+    <% if (demande.score_risque_pourcentage === null || demande.score_risque_pourcentage === undefined) { %>
+      <p style="font-size:13px; color:var(--ink-soft);">Aucune évaluation disponible pour ce dossier.</p>
+    <% } else { %>
+      <div class="recap-ligne"><span>Risque de défaut estimé</span><span><%= demande.score_risque_pourcentage %>%</span></div>
+    <% } %>
+
     <h3 class="section-titre">Pièces jointes</h3>
     <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">
       Consultables en détail depuis l'espace agent — vue d'ensemble ici à titre indicatif.

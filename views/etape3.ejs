@@ -7,25 +7,89 @@
     <%- include('partials/progression', { actuel: 4 }) %>
 
     <div class="info-reprise" style="border-color:var(--gold);">
-      Chaque document est vérifié automatiquement à l'envoi : assurez-vous de déposer le bon fichier au bon endroit.
+      Chaque document est vérifié automatiquement dès que vous le choisissez.
     </div>
 
     <% if (erreur) { %><div class="erreur">⚠️ <%- erreur.split('\n').join('<br>') %></div><% } %>
 
-    <form method="POST" action="/demande/documents" enctype="multipart/form-data">
+    <form method="POST" action="/demande/documents" enctype="multipart/form-data" id="form-documents">
       <% documents.forEach(doc => { %>
-        <div class="doc-item">
+        <div class="doc-item" id="doc-item-<%= doc.cle %>">
           <div class="doc-num"><%= doc.numero %></div>
           <div class="doc-label"><%= doc.label %></div>
-          <input type="file" name="<%= doc.cle %>" accept=".pdf,application/pdf" required>
+          <span class="verif-live" id="verif-live-<%= doc.cle %>" aria-live="polite"></span>
+          <input type="file" name="<%= doc.cle %>" data-cle="<%= doc.cle %>" accept=".pdf,application/pdf" required>
         </div>
       <% }) %>
       <div class="actions">
         <a href="/demande/pret" class="btn secondaire">← Retour</a>
-        <button type="submit" class="btn">Continuer →</button>
+        <button type="submit" class="btn" id="btn-continuer">Continuer →</button>
       </div>
     </form>
   </div>
 </div>
+
+<style>
+  .verif-live{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px;
+    border-radius:50%; font-size:13px; font-weight:800; flex-shrink:0;}
+  .verif-live.chargement{background:var(--line); color:var(--ink-soft);}
+  .verif-live.ok{background:#DCEBFB; color:#1B5FA8;}
+  .verif-live.ko{background:#FBEAEC; color:var(--red-dark);}
+  .verif-live.attente{background:#FCEFD9; color:#8C6A2E;}
+  .doc-item.ok{border-color:#1B5FA8;}
+  .doc-item.ko{border-color:var(--red);}
+</style>
+
+<script>
+(function () {
+  document.querySelectorAll('#form-documents input[type=file]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      const cle = input.dataset.cle;
+      const icone = document.getElementById('verif-live-' + cle);
+      const item = document.getElementById('doc-item-' + cle);
+      item.classList.remove('ok', 'ko');
+
+      if (!input.files || !input.files[0]) {
+        icone.className = 'verif-live';
+        icone.innerHTML = '';
+        return;
+      }
+
+      icone.className = 'verif-live chargement';
+      icone.innerHTML = '…';
+      icone.title = 'Vérification en cours...';
+
+      const donnees = new FormData();
+      donnees.append('fichier', input.files[0]);
+      donnees.append('cle', cle);
+
+      fetch('/demande/documents/verifier-un', { method: 'POST', body: donnees })
+        .then(function (r) { return r.json(); })
+        .then(function (resultat) {
+          if (resultat.statut === 'reconnu') {
+            icone.className = 'verif-live ok';
+            icone.innerHTML = '✓';
+            icone.title = 'Document reconnu';
+            item.classList.add('ok');
+          } else if (resultat.statut === 'a_verifier') {
+            icone.className = 'verif-live attente';
+            icone.innerHTML = '?';
+            icone.title = resultat.details || 'Vérification manuelle nécessaire';
+          } else {
+            icone.className = 'verif-live ko';
+            icone.innerHTML = '✕';
+            icone.title = resultat.details || 'Ce document ne semble pas correspondre';
+            item.classList.add('ko');
+          }
+        })
+        .catch(function () {
+          icone.className = 'verif-live ko';
+          icone.innerHTML = '✕';
+          icone.title = 'Impossible de vérifier ce fichier — réessayez.';
+        });
+    });
+  });
+})();
+</script>
 
 <%- include('partials/pied') %>

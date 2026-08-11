@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { listerToutesDemandes, statistiquesGlobales, trouverParId } = require("../db/database");
+const {
+  listerToutesDemandes, statistiquesGlobales, trouverParId,
+  listerAgents, creerAgent, trouverAgentParId, definirActifAgent, trouverAgentParIdentifiant,
+} = require("../db/database");
 
 // ------------------------------------------------------------
 // Compte superviseur de démonstration.
@@ -55,6 +58,55 @@ router.get("/demande/:id", exigerSuperviseur, (req, res) => {
     titre: `Demande ${demande.reference} — Espace superviseur`,
     demande,
   });
+});
+
+// ============================================================
+// GESTION DES AGENTS — créer un compte agent, le désactiver
+// ("déconnecter") ou le réactiver.
+// ============================================================
+router.get("/agents", exigerSuperviseur, (req, res) => {
+  res.render("superviseur_agents", {
+    titre: "Gestion des agents — Espace superviseur",
+    agents: listerAgents(),
+    erreur: null,
+    succes: null,
+  });
+});
+
+router.post("/agents", exigerSuperviseur, (req, res) => {
+  const { identifiant, mdp, nom } = req.body;
+  const rendre = (erreur, succes) => res.render("superviseur_agents", {
+    titre: "Gestion des agents — Espace superviseur",
+    agents: listerAgents(), erreur, succes,
+  });
+
+  const idPropre = (identifiant || "").trim();
+  const nomPropre = (nom || "").trim();
+
+  if (!idPropre || !mdp || !nomPropre) {
+    return rendre("Merci de compléter l'identifiant, le mot de passe et le nom complet.", null);
+  }
+  if (mdp.length < 6) {
+    return rendre("Le mot de passe doit contenir au moins 6 caractères.", null);
+  }
+  if (trouverAgentParIdentifiant(idPropre)) {
+    return rendre("Cet identifiant est déjà utilisé par un autre agent.", null);
+  }
+
+  creerAgent({ identifiant: idPropre, mdp, nom: nomPropre });
+  rendre(null, `Le compte agent « ${idPropre} » a bien été créé.`);
+});
+
+router.post("/agents/:id/desactiver", exigerSuperviseur, (req, res) => {
+  const agent = trouverAgentParId(req.params.id);
+  if (agent) definirActifAgent(agent.id, false);
+  res.redirect("/superviseur/agents");
+});
+
+router.post("/agents/:id/reactiver", exigerSuperviseur, (req, res) => {
+  const agent = trouverAgentParId(req.params.id);
+  if (agent) definirActifAgent(agent.id, true);
+  res.redirect("/superviseur/agents");
 });
 
 module.exports = router;

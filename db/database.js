@@ -9,11 +9,26 @@ const low = require("lowdb");
 const FileSync = require("lowdb/adapters/FileSync");
 const path = require("path");
 
+const bcrypt = require("bcryptjs");
+
 const DB_PATH = path.join(__dirname, "ecredit.json");
 const adapter = new FileSync(DB_PATH);
 const db = low(adapter);
 
-db.defaults({ demandes: [], brouillons: [] }).write();
+db.defaults({ demandes: [], brouillons: [], agents: [] }).write();
+
+// Crée un premier agent par défaut au tout premier démarrage, pour ne pas
+// casser l'accès si aucun agent n'a encore été créé depuis l'espace superviseur.
+if (db.get("agents").value().length === 0) {
+  db.get("agents").push({
+    id: 1,
+    identifiant: "agent",
+    mdp_hash: bcrypt.hashSync("afriland2026", 10),
+    nom: "Agent Afriland",
+    actif: true,
+    date_creation: new Date().toISOString(),
+  }).write();
+}
 
 console.log(">>> Base de données Afriland E-Crédit prête :", DB_PATH);
 
@@ -127,9 +142,57 @@ function statistiquesGlobales() {
   };
 }
 
+// ------------------------------------------------------------
+// Gestion des agents — créés et désactivés ("déconnectés") depuis
+// l'espace superviseur. Le mot de passe n'est jamais stocké en
+// clair (bcrypt), et un agent désactivé est bloqué à sa toute
+// prochaine requête, même s'il était déjà connecté.
+// ------------------------------------------------------------
+function genererIdAgent() {
+  const agents = db.get("agents").value();
+  return agents.length ? Math.max(...agents.map(a => a.id)) + 1 : 1;
+}
+
+function listerAgents() {
+  return db.get("agents").sortBy("date_creation").value();
+}
+
+function creerAgent({ identifiant, mdp, nom }) {
+  const agent = {
+    id: genererIdAgent(),
+    identifiant,
+    mdp_hash: bcrypt.hashSync(mdp, 10),
+    nom,
+    actif: true,
+    date_creation: new Date().toISOString(),
+  };
+  db.get("agents").push(agent).write();
+  return agent;
+}
+
+function trouverAgentParIdentifiant(identifiant) {
+  return db.get("agents").find({ identifiant }).value();
+}
+
+function trouverAgentParId(id) {
+  return db.get("agents").find({ id: parseInt(id) }).value();
+}
+
+function definirActifAgent(id, actif) {
+  db.get("agents").find({ id: parseInt(id) }).assign({ actif }).write();
+}
+
+function verifierMdpAgent(identifiant, mdp) {
+  const agent = trouverAgentParIdentifiant(identifiant);
+  if (!agent || !agent.actif) return null;
+  return bcrypt.compareSync(mdp, agent.mdp_hash) ? agent : null;
+}
+
 module.exports = {
   db, creerDemande, trouverParReference, trouverParId,
   listerDemandesParStatut, compterParStatut, enregistrerDecision,
   sauvegarderBrouillon, trouverBrouillon, supprimerBrouillon,
   listerToutesDemandes, statistiquesGlobales,
+  listerAgents, creerAgent, trouverAgentParIdentifiant, trouverAgentParId,
+  definirActifAgent, verifierMdpAgent,
 };

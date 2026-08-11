@@ -1,9 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const agentRoutes = require("./agent");
 const superviseurRoutes = require("./superviseur");
+const { verifierMdpAgent } = require("../db/database");
 
-const { AGENT_IDENTIFIANT, AGENT_MDP, AGENT_NOM } = agentRoutes;
 const { SUPERVISEUR_IDENTIFIANT, SUPERVISEUR_MDP, SUPERVISEUR_NOM } = superviseurRoutes;
 
 // ------------------------------------------------------------
@@ -21,9 +20,11 @@ router.get("/", (req, res) => {
 router.post("/", (req, res) => {
   const { identifiant, mdp } = req.body;
 
-  if (identifiant === AGENT_IDENTIFIANT && mdp === AGENT_MDP) {
+  const agent = verifierMdpAgent(identifiant, mdp);
+  if (agent) {
     req.session.agentConnecte = true;
-    req.session.agentNom = AGENT_NOM;
+    req.session.agentIdentifiant = agent.identifiant;
+    req.session.agentNom = agent.nom;
     return res.redirect("/agent/tableau-bord");
   }
 

@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+const { evaluerRisque } = require("../modele/risque");
 const {
   creerDemande, trouverParReference,
   sauvegarderBrouillon, trouverBrouillon, supprimerBrouillon,
@@ -442,29 +443,67 @@ router.get("/demande/verification-email/renvoyer", async (req, res) => {
 });
 
 // ============================================================
-// ETAPE 2 — DETAILS DU PRET
+// ETAPE 2 — DETAILS DU PRET + PROFIL POUR LE MODELE DE RISQUE
 // ============================================================
+const { construireCategories } = require("../modele/libelles");
+const donneesModele = require("../modele/modele_risque.json");
+const CATEGORIES_FORMULAIRE = construireCategories(donneesModele);
+
+// Champs catégoriels du modèle (hors telephone/travailleur_etranger, gérés
+// séparément dans le formulaire car ce sont de simples oui/non).
+const CHAMPS_CATEGORIELS_PROFIL = donneesModele.colonnes_categorielles.filter(
+  c => c !== "telephone" && c !== "travailleur_etranger"
+);
+const CHAMPS_NUMERIQUES_PROFIL = donneesModele.colonnes_numeriques.filter(
+  c => c !== "duree_credit_mois" && c !== "montant_credit"
+);
+
 router.get("/demande/pret", (req, res) => {
   if (!req.session.demande || !req.session.demande.email_verifie) return res.redirect(etapeSuivante(req.session.demande));
-  res.render("etape2", { titre: "Votre demande — Afriland E-Crédit", erreur: null, donnees: req.session.demande });
+  res.render("etape2", {
+    titre: "Votre demande — Afriland E-Crédit", erreur: null,
+    donnees: req.session.demande, categories: CATEGORIES_FORMULAIRE,
+  });
 });
 
 router.post("/demande/pret", (req, res) => {
   const { montant, duree, motif, situation } = req.body;
   const m = parseFloat(montant);
   const rendreErreur = (msg) => res.render("etape2", {
-    titre: "Votre demande — Afriland E-Crédit", erreur: msg, donnees: { ...req.session.demande, montant, duree, motif, situation },
+    titre: "Votre demande — Afriland E-Crédit", erreur: msg,
+    donnees: { ...req.session.demande, ...req.body }, categories: CATEGORIES_FORMULAIRE,
   });
+
   if (!m || m < 50000 || m > 5000000) {
     return rendreErreur("Le montant doit être compris entre 50 000 et 5 000 000 FCFA.");
   }
   if (!duree || !motif || !situation) {
     return rendreErreur("Merci de compléter tous les champs.");
   }
+
+  const manquants = [];
+  CHAMPS_CATEGORIELS_PROFIL.forEach(c => { if (!req.body[c]) manquants.push(c); });
+  ["telephone", "travailleur_etranger"].forEach(c => { if (!req.body[c]) manquants.push(c); });
+  CHAMPS_NUMERIQUES_PROFIL.forEach(c => { if (req.body[c] === undefined || req.body[c] === "") manquants.push(c); });
+  if (manquants.length) {
+    return rendreErreur("Merci de compléter toutes les informations de votre profil.");
+  }
+
   req.session.demande.montant = m;
   req.session.demande.duree = parseInt(duree);
   req.session.demande.motif = motif;
   req.session.demande.situation = situation;
+
+  const profilRisque = {
+    duree_credit_mois: parseInt(duree),
+    montant_credit: m,
+  };
+  CHAMPS_CATEGORIELS_PROFIL.forEach(c => { profilRisque[c] = req.body[c]; });
+  CHAMPS_NUMERIQUES_PROFIL.forEach(c => { profilRisque[c] = Number(req.body[c]); });
+  profilRisque.telephone = req.body.telephone;
+  profilRisque.travailleur_etranger = req.body.travailleur_etranger;
+  req.session.demande.profil_risque = profilRisque;
+
   persisterBrouillon(req);
   res.redirect("/demande/documents");
 });
@@ -472,6 +511,29 @@ router.post("/demande/pret", (req, res) => {
 // ============================================================
 // ETAPE 3 — DOCUMENTS (8 pieces, PDF uniquement, verifiees)
 // ============================================================
+// ------------------------------------------------------------
+// Verification "live" d'une seule piece a la fois (appelee en
+// AJAX depuis etape3.ejs des que le client choisit un fichier,
+// pour un retour immediat avant meme la soumission du formulaire).
+// ------------------------------------------------------------
+router.post("/demande/documents/verifier-un", (req, res) => {
+  upload.single("fichier")(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ statut: "invalide", details: "Seuls les fichiers PDF sont acceptés." });
+    }
+    const cle = req.body.cle;
+    const docReq = DOCUMENTS_REQUIS.find(d => d.cle === cle);
+    if (!docReq) return res.status(400).json({ statut: "invalide", details: "Pièce inconnue." });
+    if (!req.file) return res.status(400).json({ statut: "invalide", details: "Aucun fichier reçu." });
+    try {
+      const resultat = await verifierDocument(cle, req.file.buffer);
+      res.json(resultat);
+    } catch (e) {
+      res.status(500).json({ statut: "invalide", details: "Erreur lors de la vérification." });
+    }
+  });
+});
+
 router.get("/demande/documents", (req, res) => {
   if (!req.session.demande || !req.session.demande.email_verifie || !req.session.demande.montant) return res.redirect(etapeSuivante(req.session.demande));
   res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS, erreur: null });
@@ -544,10 +606,24 @@ router.post("/demande/soumettre", (req, res) => {
   if (!d || !d.email_verifie || !d.documents) return res.redirect(etapeSuivante(d));
 
   const reference = genererReference();
+
+  // Calcul du score de risque (modèle scikit-learn porté en JS — voir modele/risque.js)
+  let scoreRisque = null;
+  if (d.profil_risque) {
+    try {
+      scoreRisque = evaluerRisque(d.profil_risque);
+    } catch (e) {
+      console.error(">>> [ERREUR MODELE DE RISQUE]", e.message || e);
+    }
+  }
+
   creerDemande({
     reference, nom: d.nom, prenom: d.prenom, email: d.email, telephone: d.telephone, cni: d.cni,
     numero_compte: d.numero_compte, email_verifie: true,
     montant: d.montant, duree: d.duree, motif: d.motif, situation: d.situation,
+    profil_risque: d.profil_risque || null,
+    score_risque_pourcentage: scoreRisque ? scoreRisque.pourcentage : null,
+    score_risque_facteurs: scoreRisque ? scoreRisque.facteurs : null,
     documents: d.documents, statut: "nouvelle", date_soumission: new Date().toISOString(),
   });
 
