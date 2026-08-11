@@ -146,3 +146,6 @@ router.post("/demande/:id/decider", exigerAgent, (req, res) => {
 });
 
 module.exports = router;
+module.exports.AGENT_IDENTIFIANT = AGENT_IDENTIFIANT;
+module.exports.AGENT_MDP = AGENT_MDP;
+module.exports.AGENT_NOM = AGENT_NOM;

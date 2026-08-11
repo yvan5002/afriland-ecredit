@@ -58,3 +58,6 @@ router.get("/demande/:id", exigerSuperviseur, (req, res) => {
 });
 
 module.exports = router;
+module.exports.SUPERVISEUR_IDENTIFIANT = SUPERVISEUR_IDENTIFIANT;
+module.exports.SUPERVISEUR_MDP = SUPERVISEUR_MDP;
+module.exports.SUPERVISEUR_NOM = SUPERVISEUR_NOM;
