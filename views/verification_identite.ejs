@@ -1,0 +1,174 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:600px;">
+  <div class="card">
+    <h2>Vérification d'identité</h2>
+    <p class="souscription">Dernière étape avant le récapitulatif — nous comparons une photo de vous à celle de votre CNI, pour confirmer que c'est bien vous.</p>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <div id="zone-chargement" style="text-align:center; padding:30px 0; color:var(--ink-soft); font-size:13px;">
+      Chargement de l'outil de vérification…
+    </div>
+
+    <div id="zone-verification" style="display:none;">
+      <div class="grid2" style="align-items:start;">
+        <div>
+          <p style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--gold-dark); margin-bottom:8px;">Photo de votre CNI</p>
+          <img id="photo-cni" alt="Photo extraite de votre CNI" style="width:100%; border-radius:10px; border:1px solid var(--line);">
+        </div>
+        <div>
+          <p style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--gold-dark); margin-bottom:8px;">Votre visage (caméra)</p>
+          <video id="video" autoplay muted playsinline style="width:100%; border-radius:10px; border:1px solid var(--line); background:#000;"></video>
+          <canvas id="canvas" style="display:none;"></canvas>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin:20px 0;">
+        <button type="button" id="btn-capturer" class="btn">📸 Prendre la photo et comparer</button>
+      </div>
+
+      <div id="zone-resultat" style="display:none; text-align:center;"></div>
+    </div>
+
+    <form method="POST" action="/demande/verification-identite" id="form-resultat" style="display:none;">
+      <input type="hidden" name="correspond" id="champ-correspond">
+      <input type="hidden" name="score" id="champ-score">
+      <div class="actions">
+        <a href="/demande/documents" class="btn secondaire">← Retour</a>
+        <button type="submit" class="btn" id="btn-continuer" disabled>Continuer →</button>
+      </div>
+    </form>
+
+    <p id="lien-camera-indisponible" style="display:none; text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:16px;">
+      Caméra indisponible sur cet appareil/navigateur ? Un agent pourra vérifier votre identité manuellement à partir de vos documents.
+      <br><a href="#" id="lien-passer" style="color:var(--red-dark); font-weight:600;">Continuer sans vérification automatique →</a>
+    </p>
+  </div>
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+(function () {
+  const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
+  const SEUIL_CORRESPONDANCE = 0.6; // distance euclidienne face-api.js — en dessous : même personne
+
+  const zoneChargement = document.getElementById("zone-chargement");
+  const zoneVerification = document.getElementById("zone-verification");
+  const zoneResultat = document.getElementById("zone-resultat");
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const photoCni = document.getElementById("photo-cni");
+  const btnCapturer = document.getElementById("btn-capturer");
+  const formResultat = document.getElementById("form-resultat");
+  const champCorrespond = document.getElementById("champ-correspond");
+  const champScore = document.getElementById("champ-score");
+  const btnContinuer = document.getElementById("btn-continuer");
+  const lienCameraIndisponible = document.getElementById("lien-camera-indisponible");
+  const lienPasser = document.getElementById("lien-passer");
+
+  function afficherResultat(html) {
+    zoneResultat.style.display = "block";
+    zoneResultat.innerHTML = html;
+  }
+
+  function autoriserContinuer(correspond, score) {
+    champCorrespond.value = correspond ? "oui" : "non";
+    champScore.value = score;
+    formResultat.style.display = "block";
+    btnContinuer.disabled = false;
+  }
+
+  function permettrePasserSansVerification() {
+    lienCameraIndisponible.style.display = "block";
+    lienPasser.addEventListener("click", function (e) {
+      e.preventDefault();
+      autoriserContinuer(false, -1);
+      afficherResultat('<div class="verif-resultat ko">Vérification automatique non disponible — un agent vérifiera votre dossier manuellement.</div>');
+      formResultat.dispatchEvent(new Event("submit-direct"));
+      formResultat.submit();
+    });
+  }
+
+  async function demarrer() {
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      ]);
+    } catch (e) {
+      zoneChargement.textContent = "Impossible de charger l'outil de vérification (connexion internet requise).";
+      permettrePasserSansVerification();
+      return;
+    }
+
+    photoCni.src = "/demande/verification-identite/image-cni";
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    } catch (e) {
+      zoneChargement.style.display = "none";
+      permettrePasserSansVerification();
+      return;
+    }
+    video.srcObject = stream;
+
+    zoneChargement.style.display = "none";
+    zoneVerification.style.display = "block";
+
+    btnCapturer.addEventListener("click", async function () {
+      btnCapturer.disabled = true;
+      btnCapturer.textContent = "Analyse en cours…";
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+
+      try {
+        const descripteurSelfie = await faceapi
+          .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        const descripteurCni = await faceapi
+          .detectSingleFace(photoCni, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (!descripteurSelfie) {
+          afficherResultat('<div class="verif-resultat ko">Aucun visage détecté sur la photo prise. Réessayez avec un meilleur éclairage.</div>');
+          btnCapturer.disabled = false; btnCapturer.textContent = "📸 Prendre la photo et comparer";
+          return;
+        }
+        if (!descripteurCni) {
+          afficherResultat('<div class="verif-resultat ko">Le visage n\'est pas détectable sur la photo de la CNI (qualité insuffisante) — un agent vérifiera manuellement.</div>');
+          autoriserContinuer(false, -1);
+          return;
+        }
+
+        const distance = faceapi.euclideanDistance(descripteurSelfie.descriptor, descripteurCni.descriptor);
+        const correspond = distance < SEUIL_CORRESPONDANCE;
+
+        if (correspond) {
+          afficherResultat('<div class="verif-resultat ok">✓ Correspondance confirmée — c\'est bien vous.</div>');
+        } else {
+          afficherResultat('<div class="verif-resultat ko">⚠ Le visage ne semble pas correspondre à la photo de la CNI. Un agent examinera votre dossier attentivement.</div>');
+        }
+        autoriserContinuer(correspond, distance);
+        stream.getTracks().forEach(t => t.stop());
+        btnCapturer.style.display = "none";
+      } catch (e) {
+        afficherResultat('<div class="verif-resultat ko">Erreur lors de l\'analyse — un agent vérifiera votre dossier manuellement.</div>');
+        autoriserContinuer(false, -1);
+        btnCapturer.disabled = false; btnCapturer.textContent = "📸 Prendre la photo et comparer";
+      }
+    });
+  }
+
+  demarrer();
+})();
+</script>
+
+<%- include('partials/pied') %>

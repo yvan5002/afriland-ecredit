@@ -63,9 +63,6 @@ h1,h2,h3{font-family:var(--font-titre);}
     radial-gradient(ellipse 80% 60% at 50% -10%, var(--gold-pale) 0%, transparent 65%),
     var(--motif-or-sur-creme);
 }
-.hero-balance{position:absolute; top:50%; right:-40px; transform:translateY(-50%); width:340px; height:340px;
-  opacity:.14; pointer-events:none; z-index:0;}
-.hero > *{position:relative; z-index:1;}
 .hero .eyebrow{display:inline-flex; align-items:center; gap:8px; font-size:11px; font-weight:700; letter-spacing:1.4px;
   text-transform:uppercase; color:var(--gold-dark); background:#fff; border:1px solid var(--gold-pale);
   padding:7px 16px; border-radius:20px; margin-bottom:22px;}
@@ -241,8 +238,4 @@ footer::before{content:''; display:block; height:6px; margin:0 auto 24px; max-wi
 
 @media (max-width:400px){
   .topbar .brand-text small{display:none;}
-}
-
-@media (max-width:640px){
-  .hero-balance{width:200px; height:200px; opacity:.10; right:-30px;}
 }

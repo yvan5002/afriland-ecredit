@@ -8,7 +8,7 @@
 
     <% if (erreur) { %><div class="erreur">⚠️ <%= erreur.split('\n').join('<br>') %></div><% } %>
 
-    <form method="POST" action="/demande/pret">
+    <form method="POST" action="/demande/pret" id="form-etape2">
 
       <div class="section-titre">Le crédit demandé</div>
       <div class="grid2">
@@ -25,29 +25,44 @@
         <label>Objet du crédit (description libre)</label>
         <input type="text" name="motif" placeholder="Ex : achat de matériel professionnel" value="<%= donnees.motif || '' %>" required>
       </div>
-      <div class="champ">
+
+      <%
+        // Liste des champs à choix qui proposent tous une case "Autre (préciser)".
+        function estConnue(valeur, liste) { return liste.some(o => o.valeur === valeur); }
+      %>
+
+      <div class="champ champ-autre-groupe">
         <label>Catégorie de l'objet du crédit</label>
-        <select name="objet_credit" required>
+        <select name="objet_credit" class="select-autre" required>
           <option value="">— Sélectionner —</option>
           <% categories.objet_credit.forEach(o => { %>
             <option value="<%= o.valeur %>" <%= donnees.objet_credit === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
           <% }) %>
+          <option value="__autre__" <%= (donnees.objet_credit && !estConnue(donnees.objet_credit, categories.objet_credit)) ? 'selected' : '' %>>Autre (préciser)</option>
         </select>
+        <input type="text" name="objet_credit_autre" class="champ-autre-texte" placeholder="Précisez l'objet du crédit"
+          value="<%= (donnees.objet_credit && !estConnue(donnees.objet_credit, categories.objet_credit)) ? donnees.objet_credit : '' %>"
+          style="display:none; margin-top:8px;">
       </div>
-      <div class="champ">
+
+      <div class="champ champ-autre-groupe">
         <label>Situation professionnelle</label>
-        <select name="situation" required>
+        <select name="situation" class="select-autre" required>
           <option value="">— Sélectionner —</option>
           <option value="salarie" <%= donnees.situation === 'salarie' ? 'selected' : '' %>>Salarié(e)</option>
           <option value="independant" <%= donnees.situation === 'independant' ? 'selected' : '' %>>Indépendant(e)</option>
           <option value="fonctionnaire" <%= donnees.situation === 'fonctionnaire' ? 'selected' : '' %>>Fonctionnaire</option>
-          <option value="autre" <%= donnees.situation === 'autre' ? 'selected' : '' %>>Autre</option>
+          <option value="__autre__" <%= (donnees.situation && !['salarie','independant','fonctionnaire'].includes(donnees.situation)) ? 'selected' : '' %>>Autre (préciser)</option>
         </select>
+        <input type="text" name="situation_autre" class="champ-autre-texte" placeholder="Précisez votre situation professionnelle"
+          value="<%= (donnees.situation && !['salarie','independant','fonctionnaire'].includes(donnees.situation)) ? donnees.situation : '' %>"
+          style="display:none; margin-top:8px;">
       </div>
 
       <div class="section-titre">Votre profil (pour l'évaluation automatique du dossier)</div>
       <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">
         Ces informations alimentent notre outil d'aide à la décision ; elles sont toujours vérifiées par un agent avant toute réponse.
+        Si une option ne correspond pas exactement à votre cas, choisissez « Autre (préciser) ».
       </p>
 
       <div class="grid2">
@@ -82,107 +97,147 @@
       </div>
 
       <div class="grid2">
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Compte courant chez Afriland</label>
-          <select name="statut_compte_courant" required>
+          <select name="statut_compte_courant" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.statut_compte_courant.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.statut_compte_courant === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.statut_compte_courant && !estConnue(donnees.statut_compte_courant, categories.statut_compte_courant)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="statut_compte_courant_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.statut_compte_courant && !estConnue(donnees.statut_compte_courant, categories.statut_compte_courant)) ? donnees.statut_compte_courant : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Historique de crédit</label>
-          <select name="historique_credit" required>
+          <select name="historique_credit" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.historique_credit.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.historique_credit === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.historique_credit && !estConnue(donnees.historique_credit, categories.historique_credit)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="historique_credit_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.historique_credit && !estConnue(donnees.historique_credit, categories.historique_credit)) ? donnees.historique_credit : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
       </div>
 
       <div class="grid2">
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Niveau d'épargne</label>
-          <select name="epargne" required>
+          <select name="epargne" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.epargne.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.epargne === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.epargne && !estConnue(donnees.epargne, categories.epargne)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="epargne_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.epargne && !estConnue(donnees.epargne, categories.epargne)) ? donnees.epargne : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Ancienneté dans l'emploi actuel</label>
-          <select name="anciennete_emploi" required>
+          <select name="anciennete_emploi" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.anciennete_emploi.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.anciennete_emploi === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.anciennete_emploi && !estConnue(donnees.anciennete_emploi, categories.anciennete_emploi)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="anciennete_emploi_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.anciennete_emploi && !estConnue(donnees.anciennete_emploi, categories.anciennete_emploi)) ? donnees.anciennete_emploi : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
       </div>
 
       <div class="grid2">
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Niveau de qualification professionnelle</label>
-          <select name="profession" required>
+          <select name="profession" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.profession.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.profession === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.profession && !estConnue(donnees.profession, categories.profession)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="profession_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.profession && !estConnue(donnees.profession, categories.profession)) ? donnees.profession : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Type de logement</label>
-          <select name="logement" required>
+          <select name="logement" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.logement.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.logement === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.logement && !estConnue(donnees.logement, categories.logement)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="logement_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.logement && !estConnue(donnees.logement, categories.logement)) ? donnees.logement : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
       </div>
 
       <div class="grid2">
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Patrimoine principal</label>
-          <select name="patrimoine" required>
+          <select name="patrimoine" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.patrimoine.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.patrimoine === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.patrimoine && !estConnue(donnees.patrimoine, categories.patrimoine)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="patrimoine_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.patrimoine && !estConnue(donnees.patrimoine, categories.patrimoine)) ? donnees.patrimoine : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Autre crédit en cours ailleurs</label>
-          <select name="autres_plans_credit" required>
+          <select name="autres_plans_credit" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.autres_plans_credit.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.autres_plans_credit === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.autres_plans_credit && !estConnue(donnees.autres_plans_credit, categories.autres_plans_credit)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="autres_plans_credit_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.autres_plans_credit && !estConnue(donnees.autres_plans_credit, categories.autres_plans_credit)) ? donnees.autres_plans_credit : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
       </div>
 
       <div class="grid2">
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Co-demandeur ou garant sur ce dossier</label>
-          <select name="autres_debiteurs_garants" required>
+          <select name="autres_debiteurs_garants" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.autres_debiteurs_garants.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.autres_debiteurs_garants === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.autres_debiteurs_garants && !estConnue(donnees.autres_debiteurs_garants, categories.autres_debiteurs_garants)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="autres_debiteurs_garants_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.autres_debiteurs_garants && !estConnue(donnees.autres_debiteurs_garants, categories.autres_debiteurs_garants)) ? donnees.autres_debiteurs_garants : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
-        <div class="champ">
+        <div class="champ champ-autre-groupe">
           <label>Situation personnelle</label>
-          <select name="situation_personnelle_sexe" required>
+          <select name="situation_personnelle_sexe" class="select-autre" required>
             <option value="">— Sélectionner —</option>
             <% categories.situation_personnelle_sexe.forEach(o => { %>
               <option value="<%= o.valeur %>" <%= donnees.situation_personnelle_sexe === o.valeur ? 'selected' : '' %>><%= o.libelle %></option>
             <% }) %>
+            <option value="__autre__" <%= (donnees.situation_personnelle_sexe && !estConnue(donnees.situation_personnelle_sexe, categories.situation_personnelle_sexe)) ? 'selected' : '' %>>Autre (préciser)</option>
           </select>
+          <input type="text" name="situation_personnelle_sexe_autre" class="champ-autre-texte" placeholder="Précisez"
+            value="<%= (donnees.situation_personnelle_sexe && !estConnue(donnees.situation_personnelle_sexe, categories.situation_personnelle_sexe)) ? donnees.situation_personnelle_sexe : '' %>"
+            style="display:none; margin-top:8px;">
         </div>
       </div>
 
@@ -212,5 +267,34 @@
     </form>
   </div>
 </div>
+
+<script>
+(function () {
+  document.querySelectorAll('.select-autre').forEach(function (select) {
+    const groupe = select.closest('.champ-autre-groupe');
+    const champTexte = groupe.querySelector('.champ-autre-texte');
+
+    function actualiser() {
+      const estAutre = select.value === '__autre__';
+      champTexte.style.display = estAutre ? 'block' : 'none';
+      champTexte.required = estAutre;
+    }
+    actualiser();
+    select.addEventListener('change', actualiser);
+  });
+
+  document.getElementById('form-etape2').addEventListener('submit', function () {
+    document.querySelectorAll('.select-autre').forEach(function (select) {
+      if (select.value !== '__autre__') return;
+      const groupe = select.closest('.champ-autre-groupe');
+      const champTexte = groupe.querySelector('.champ-autre-texte');
+      const option = document.createElement('option');
+      option.value = champTexte.value.trim() || 'autre';
+      option.selected = true;
+      select.appendChild(option);
+    });
+  });
+})();
+</script>
 
 <%- include('partials/pied') %>

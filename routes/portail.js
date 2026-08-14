@@ -7,7 +7,9 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+const { texteParOCR, texteParOCRImage, extraireImagePNGDuPDF, imageBruteVersPNG } = require("../modele/ocr");
 const { evaluerRisque } = require("../modele/risque");
+const { SMS_ACTIF, envoyerCodeParSMS, verifierCodeSMS } = require("../modele/sms");
 const {
   creerDemande, trouverParReference,
   sauvegarderBrouillon, trouverBrouillon, supprimerBrouillon,
@@ -62,18 +64,47 @@ async function extraireTexte(buffer) {
   return texte;
 }
 
-async function verifierDocument(cle, buffer) {
-  if (buffer.length < 5 || buffer.slice(0, 5).toString() !== "%PDF-") {
-    return { statut: "invalide", details: "Le fichier n'est pas un PDF valide." };
+async function verifierDocument(cle, buffer, mimetype) {
+  const estImage = mimetype === "image/jpeg" || mimetype === "image/jpg" || mimetype === "image/png";
+  const estPDF = mimetype === "application/pdf" || (!estImage && buffer.length >= 5 && buffer.slice(0, 5).toString() === "%PDF-");
+
+  if (!estImage && !estPDF) {
+    return { statut: "invalide", details: "Le fichier n'est ni un PDF ni une image (JPG/PNG) valide." };
   }
+
   let texte = "";
-  try {
-    texte = " " + (await extraireTexte(buffer)).toLowerCase().replace(/\s+/g, " ") + " ";
-  } catch (e) {
-    return { statut: "invalide", details: "Ce fichier PDF est illisible ou corrompu." };
+
+  if (estImage) {
+    // Photo directe (JPG/PNG) : lecture optique immédiate, pas d'étape de texte numérique.
+    try {
+      const texteOCR = await texteParOCRImage(buffer, mimetype);
+      texte = " " + (texteOCR || "").toLowerCase().replace(/\s+/g, " ") + " ";
+    } catch (e) {
+      console.error(">>> [ERREUR OCR IMAGE]", e.message || e);
+    }
+  } else {
+    try {
+      texte = " " + (await extraireTexte(buffer)).toLowerCase().replace(/\s+/g, " ") + " ";
+    } catch (e) {
+      return { statut: "invalide", details: "Ce fichier PDF est illisible ou corrompu." };
+    }
+
+    // Pas de texte numérique dans le PDF -> c'est probablement un scan/photo :
+    // on tente une lecture optique (OCR) de l'image avant d'abandonner.
+    if (!texte.trim()) {
+      try {
+        const texteOCR = await texteParOCR(buffer);
+        if (texteOCR && texteOCR.trim()) {
+          texte = " " + texteOCR.toLowerCase().replace(/\s+/g, " ") + " ";
+        }
+      } catch (e) {
+        console.error(">>> [ERREUR OCR]", e.message || e);
+      }
+    }
   }
+
   if (!texte.trim()) {
-    return { statut: "a_verifier", details: "Document scanné (image) — vérification manuelle par l'agent." };
+    return { statut: "a_verifier", details: "Document illisible automatiquement (image de mauvaise qualité) — vérification manuelle par l'agent." };
   }
 
   const scorePropre = (MOTS_CLES[cle] || []).filter(m => texte.includes(m)).length;
@@ -95,21 +126,29 @@ async function verifierDocument(cle, buffer) {
 // ------------------------------------------------------------
 // Upload PDF uniquement (memes regles que l'application interne)
 // ------------------------------------------------------------
+const MIMETYPES_ACCEPTES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 }, // 8 Mo
   fileFilter: (req, file, cb) => {
-    if (file.mimetype !== "application/pdf") {
-      return cb(new Error("SEUL_PDF_AUTORISE"));
+    if (!MIMETYPES_ACCEPTES.includes(file.mimetype)) {
+      return cb(new Error("TYPE_FICHIER_NON_AUTORISE"));
     }
     cb(null, true);
   },
 });
 
+function extensionPourMimetype(mimetype) {
+  if (mimetype === "image/png") return "png";
+  if (mimetype === "image/jpeg" || mimetype === "image/jpg") return "jpg";
+  return "pdf";
+}
+
 function genererReference() {
   const date = new Date();
   const code = crypto.randomBytes(3).toString("hex").toUpperCase();
-  return `AEC-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}-${code}`;
+  return `AfB-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}-${code}`;
 }
 
 function genererIdBrouillon() {
@@ -227,11 +266,17 @@ function masquerEmail(email) {
   return u.slice(0, 2) + "***@" + d;
 }
 
+function masquerTelephone(numero) {
+  if (!numero) return numero;
+  return numero.slice(0, -4).replace(/\d/g, "•") + numero.slice(-4);
+}
+
 function etapeSuivante(d) {
   if (!d || !d.nom) return "/demande";
   if (!d.email_verifie) return "/demande/verification-email";
   if (!d.montant) return "/demande/pret";
   if (!d.documents) return "/demande/documents";
+  if (!d.identite_verifiee) return "/demande/verification-identite";
   return "/demande/recapitulatif";
 }
 
@@ -380,6 +425,39 @@ router.post("/demande/etape1", async (req, res) => {
   res.redirect("/demande/verification-email");
 });
 
+// ------------------------------------------------------------
+// "Email oublié" — bascule vers une vérification par SMS à la place.
+// ------------------------------------------------------------
+router.post("/demande/verification-sms", async (req, res) => {
+  const d = req.session.demande;
+  if (!d || !d.nom) return res.redirect("/demande");
+  if (d.email_verifie) return res.redirect(etapeSuivante(d));
+
+  const rendreErreur = (msg) => res.render("verification_email", {
+    titre: "Vérification de votre identité — Afriland E-Crédit",
+    erreur: msg, emailMasque: masquerEmail(d.email),
+    smsActif: SMS_ACTIF, methodeActuelle: d.methode_verification || "email", telephoneMasque: null,
+  });
+
+  if (!SMS_ACTIF) {
+    return rendreErreur("La vérification par SMS n'est pas disponible pour le moment. Merci d'utiliser l'email.");
+  }
+
+  try {
+    const numeroInternational = await envoyerCodeParSMS(req.body.telephone_sms);
+    d.methode_verification = "sms";
+    d.telephone_verification = numeroInternational;
+    delete d.otp_hash;
+    delete d.otp_expire;
+    delete d.otp_tentatives;
+    persisterBrouillon(req);
+    res.redirect("/demande/verification-email");
+  } catch (e) {
+    console.error(">>> [ERREUR ENVOI SMS]", e.message || e);
+    return rendreErreur("Impossible d'envoyer le SMS pour le moment. Vérifiez le numéro et réessayez.");
+  }
+});
+
 // ============================================================
 // VÉRIFICATION DE L'EMAIL PAR CODE (OTP)
 // ============================================================
@@ -390,10 +468,12 @@ router.get("/demande/verification-email", (req, res) => {
   res.render("verification_email", {
     titre: "Vérification de votre identité — Afriland E-Crédit",
     erreur: null, emailMasque: masquerEmail(d.email),
+    smsActif: SMS_ACTIF, methodeActuelle: d.methode_verification || "email",
+    telephoneMasque: d.telephone_verification ? masquerTelephone(d.telephone_verification) : null,
   });
 });
 
-router.post("/demande/verification-email", (req, res) => {
+router.post("/demande/verification-email", async (req, res) => {
   const d = req.session.demande;
   if (!d || !d.nom) return res.redirect("/demande");
   if (d.email_verifie) return res.redirect(etapeSuivante(d));
@@ -401,8 +481,24 @@ router.post("/demande/verification-email", (req, res) => {
   const rendreErreur = (msg) => res.render("verification_email", {
     titre: "Vérification de votre identité — Afriland E-Crédit",
     erreur: msg, emailMasque: masquerEmail(d.email),
+    smsActif: SMS_ACTIF, methodeActuelle: d.methode_verification || "email",
+    telephoneMasque: d.telephone_verification ? masquerTelephone(d.telephone_verification) : null,
   });
 
+  const saisi = (req.body.code || "").trim();
+
+  // Méthode SMS : la vérification du code est déléguée à Twilio Verify,
+  // on ne gère ni expiration ni tentatives nous-mêmes de ce côté.
+  if (d.methode_verification === "sms") {
+    if (!saisi) return rendreErreur("Merci de saisir le code reçu par SMS.");
+    const valide = await verifierCodeSMS(d.telephone_verification, saisi);
+    if (!valide) return rendreErreur("Code incorrect ou expiré. Vérifiez vos SMS et réessayez.");
+    d.email_verifie = true; // nom de champ conservé pour ne rien casser ailleurs dans le code
+    persisterBrouillon(req);
+    return res.redirect("/demande/pret");
+  }
+
+  // Méthode email (par défaut)
   if (Date.now() > d.otp_expire) {
     return rendreErreur("Ce code a expiré. Cliquez sur « Renvoyer le code » ci-dessous.");
   }
@@ -411,7 +507,6 @@ router.post("/demande/verification-email", (req, res) => {
     return rendreErreur("Trop de tentatives incorrectes. Cliquez sur « Renvoyer le code » pour recommencer.");
   }
 
-  const saisi = (req.body.code || "").trim();
   if (!saisi || !bcrypt.compareSync(saisi, d.otp_hash)) {
     persisterBrouillon(req);
     return rendreErreur("Code incorrect. Vérifiez votre boîte mail et réessayez.");
@@ -492,13 +587,16 @@ router.post("/demande/pret", (req, res) => {
   req.session.demande.montant = m;
   req.session.demande.duree = parseInt(duree);
   req.session.demande.motif = motif;
-  req.session.demande.situation = situation;
+  req.session.demande.situation = req.body.situation === "__autre__" ? (req.body.situation_autre || "autre").trim() : req.body.situation;
 
   const profilRisque = {
     duree_credit_mois: parseInt(duree),
     montant_credit: m,
   };
-  CHAMPS_CATEGORIELS_PROFIL.forEach(c => { profilRisque[c] = req.body[c]; });
+  CHAMPS_CATEGORIELS_PROFIL.forEach(c => {
+    const valeur = req.body[c];
+    profilRisque[c] = valeur === "__autre__" ? (req.body[c + "_autre"] || "autre").trim() : valeur;
+  });
   CHAMPS_NUMERIQUES_PROFIL.forEach(c => { profilRisque[c] = Number(req.body[c]); });
   profilRisque.telephone = req.body.telephone;
   profilRisque.travailleur_etranger = req.body.travailleur_etranger;
@@ -519,14 +617,14 @@ router.post("/demande/pret", (req, res) => {
 router.post("/demande/documents/verifier-un", (req, res) => {
   upload.single("fichier")(req, res, async (err) => {
     if (err) {
-      return res.status(400).json({ statut: "invalide", details: "Seuls les fichiers PDF sont acceptés." });
+      return res.status(400).json({ statut: "invalide", details: "Seuls les fichiers PDF, JPG ou PNG sont acceptés." });
     }
     const cle = req.body.cle;
     const docReq = DOCUMENTS_REQUIS.find(d => d.cle === cle);
     if (!docReq) return res.status(400).json({ statut: "invalide", details: "Pièce inconnue." });
     if (!req.file) return res.status(400).json({ statut: "invalide", details: "Aucun fichier reçu." });
     try {
-      const resultat = await verifierDocument(cle, req.file.buffer);
+      const resultat = await verifierDocument(cle, req.file.buffer, req.file.mimetype);
       res.json(resultat);
     } catch (e) {
       res.status(500).json({ statut: "invalide", details: "Erreur lors de la vérification." });
@@ -536,60 +634,122 @@ router.post("/demande/documents/verifier-un", (req, res) => {
 
 router.get("/demande/documents", (req, res) => {
   if (!req.session.demande || !req.session.demande.email_verifie || !req.session.demande.montant) return res.redirect(etapeSuivante(req.session.demande));
-  res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS, erreur: null });
+  res.render("etape3", {
+    titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS, erreur: null,
+    documentsExistants: req.session.demande.documents || {},
+  });
 });
 
 router.post("/demande/documents", upload.fields(DOCUMENTS_REQUIS.map(d => ({ name: d.cle, maxCount: 1 }))), async (req, res, next) => {
   try {
-    const manquants = DOCUMENTS_REQUIS.filter(d => !req.files || !req.files[d.cle]);
+    const documentsExistants = req.session.demande.documents || {};
+    const manquants = DOCUMENTS_REQUIS.filter(d => (!req.files || !req.files[d.cle]) && !documentsExistants[d.cle]);
     if (manquants.length) {
       return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-        erreur: `Pièce(s) manquante(s) : ${manquants.map(d => d.label).join(", ")}` });
+        documentsExistants, erreur: `Pièce(s) manquante(s) : ${manquants.map(d => d.label).join(", ")}` });
     }
 
-    // Verification du contenu de chaque PDF avant tout enregistrement sur disque
+    // Seuls les nouveaux fichiers réellement envoyés sont (re)vérifiés — les
+    // pièces déjà déposées lors d'un passage précédent sont conservées telles
+    // quelles, sans redemander au client de les fournir à nouveau.
     const resultats = {};
     for (const d of DOCUMENTS_REQUIS) {
-      resultats[d.cle] = await verifierDocument(d.cle, req.files[d.cle][0].buffer);
+      if (req.files && req.files[d.cle]) {
+        resultats[d.cle] = await verifierDocument(d.cle, req.files[d.cle][0].buffer, req.files[d.cle][0].mimetype);
+      }
     }
     const problemes = DOCUMENTS_REQUIS
-      .filter(d => resultats[d.cle].statut === "invalide" || resultats[d.cle].statut === "suspect")
+      .filter(d => resultats[d.cle] && (resultats[d.cle].statut === "invalide" || resultats[d.cle].statut === "suspect"))
       .map(d => `${d.label} — ${resultats[d.cle].details}`);
     if (problemes.length) {
       return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-        erreur: `Certaines pièces déposées ne correspondent pas à ce qui est attendu :\n${problemes.join(" | ")}` });
+        documentsExistants, erreur: `Certaines pièces déposées ne correspondent pas à ce qui est attendu :\n${problemes.join(" | ")}` });
     }
 
     const dossierClient = path.join(__dirname, "..", "uploads", req.session.demande.cni + "_" + Date.now());
-    fs.mkdirSync(dossierClient, { recursive: true });
+    let dossierCree = false;
 
-    const documentsEnregistres = {};
+    const documentsEnregistres = { ...documentsExistants };
     DOCUMENTS_REQUIS.forEach(d => {
+      if (!req.files || !req.files[d.cle]) return; // on garde la pièce déjà déposée précédemment
+      if (!dossierCree) { fs.mkdirSync(dossierClient, { recursive: true }); dossierCree = true; }
       const fichier = req.files[d.cle][0];
-      const nomStocke = `${d.cle}.pdf`;
+      const nomStocke = `${d.cle}.${extensionPourMimetype(fichier.mimetype)}`;
       fs.writeFileSync(path.join(dossierClient, nomStocke), fichier.buffer);
       documentsEnregistres[d.cle] = {
         nom: fichier.originalname,
         chemin: path.join(path.basename(dossierClient), nomStocke),
+        mimetype: fichier.mimetype,
         verification: resultats[d.cle].statut, // "reconnu" | "a_verifier"
       };
     });
 
     req.session.demande.documents = documentsEnregistres;
     persisterBrouillon(req);
-    res.redirect("/demande/recapitulatif");
+    res.redirect("/demande/verification-identite");
   } catch (e) {
     next(e);
   }
 });
 
-// gestion propre de l'erreur "seul PDF autorise" levee par multer fileFilter
+// gestion propre de l'erreur "type de fichier non autorise" levee par multer fileFilter
 router.use((err, req, res, next) => {
-  if (err && err.message === "SEUL_PDF_AUTORISE") {
+  if (err && err.message === "TYPE_FICHIER_NON_AUTORISE") {
     return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-      erreur: "Seuls les fichiers PDF sont acceptés pour chaque pièce." });
+      documentsExistants: (req.session.demande && req.session.demande.documents) || {},
+      erreur: "Seuls les fichiers PDF, JPG ou PNG sont acceptés pour chaque pièce." });
   }
   next(err);
+});
+
+// ============================================================
+// ETAPE VERIFICATION D'IDENTITE — comparaison photo/CNI
+// (juste avant le récapitulatif)
+// ============================================================
+router.get("/demande/verification-identite", (req, res) => {
+  const d = req.session.demande;
+  if (!d || !d.documents) return res.redirect(etapeSuivante(d));
+  if (d.identite_verifiee) return res.redirect("/demande/recapitulatif");
+  res.render("verification_identite", {
+    titre: "Vérification d'identité — Afriland E-Crédit",
+    erreur: null,
+  });
+});
+
+// Sert la photo de la CNI déjà déposée, pour comparaison côté navigateur
+// (jamais stockée séparément, toujours relue depuis le fichier original —
+// que ce soit un PDF scanné ou une photo JPG/PNG déposée directement).
+router.get("/demande/verification-identite/image-cni", async (req, res) => {
+  const d = req.session.demande;
+  if (!d || !d.documents || !d.documents.cni) return res.status(404).end();
+  try {
+    const cheminComplet = path.join(__dirname, "..", "uploads", d.documents.cni.chemin);
+    const buffer = fs.readFileSync(cheminComplet);
+    const mimetype = d.documents.cni.mimetype || "application/pdf";
+    const png = mimetype === "application/pdf"
+      ? await extraireImagePNGDuPDF(buffer)
+      : imageBruteVersPNG(buffer, mimetype);
+    if (!png) return res.status(404).end();
+    res.set("Content-Type", "image/png");
+    res.send(png);
+  } catch (e) {
+    console.error(">>> [ERREUR IMAGE CNI]", e.message || e);
+    res.status(500).end();
+  }
+});
+
+router.post("/demande/verification-identite", (req, res) => {
+  const d = req.session.demande;
+  if (!d || !d.documents) return res.redirect(etapeSuivante(d));
+
+  const correspond = req.body.correspond === "oui";
+  const score = parseFloat(req.body.score);
+
+  d.identite_verifiee = true;
+  d.identite_correspond = correspond;
+  d.identite_score = isNaN(score) ? null : Math.round(score * 100) / 100;
+  persisterBrouillon(req);
+  res.redirect("/demande/recapitulatif");
 });
 
 // ============================================================
@@ -624,6 +784,8 @@ router.post("/demande/soumettre", (req, res) => {
     profil_risque: d.profil_risque || null,
     score_risque_pourcentage: scoreRisque ? scoreRisque.pourcentage : null,
     score_risque_facteurs: scoreRisque ? scoreRisque.facteurs : null,
+    identite_correspond: d.identite_correspond !== undefined ? d.identite_correspond : null,
+    identite_score: d.identite_score !== undefined ? d.identite_score : null,
     documents: d.documents, statut: "nouvelle", date_soumission: new Date().toISOString(),
   });
 

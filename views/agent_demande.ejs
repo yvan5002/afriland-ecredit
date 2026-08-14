@@ -61,6 +61,17 @@
       </div>
     <% } %>
 
+    <h3 class="section-titre">Vérification d'identité (photo vs CNI)</h3>
+    <% if (demande.identite_correspond === null || demande.identite_correspond === undefined) { %>
+      <div class="info-reprise">Vérification non effectuée pour ce dossier.</div>
+    <% } else if (demande.identite_score !== null && demande.identite_score < 0) { %>
+      <div class="verif-resultat ko">⚠ Vérification automatique non disponible (caméra ou visage CNI illisible) — à vérifier manuellement.</div>
+    <% } else if (demande.identite_correspond) { %>
+      <div class="verif-resultat ok">✓ Le visage capturé correspond à la photo de la CNI<% if (demande.identite_score !== null) { %> (distance : <%= demande.identite_score %>)<% } %>.</div>
+    <% } else { %>
+      <div class="verif-resultat ko">⚠ Le visage capturé ne correspond pas à la photo de la CNI<% if (demande.identite_score !== null) { %> (distance : <%= demande.identite_score %>)<% } %> — à examiner attentivement.</div>
+    <% } %>
+
     <h3 class="section-titre">Pièces jointes</h3>
     <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">
       L'analyse automatique ci-dessous est <strong>indicative</strong> : elle vous aide à repérer un document

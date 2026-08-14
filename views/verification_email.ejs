@@ -3,26 +3,57 @@
 <div class="container" style="max-width:460px;">
   <div class="card">
     <h2>Vérification de votre identité</h2>
-    <p class="souscription">Étape 2 sur 5 — Un code à 6 chiffres a été envoyé à <strong><%= emailMasque %></strong>.</p>
+
+    <% if (methodeActuelle === 'sms') { %>
+      <p class="souscription">Étape 2 sur 5 — Un code à 6 chiffres a été envoyé par SMS au <strong><%= telephoneMasque %></strong>.</p>
+    <% } else { %>
+      <p class="souscription">Étape 2 sur 5 — Un code à 6 chiffres a été envoyé à <strong><%= emailMasque %></strong>.</p>
+    <% } %>
     <%- include('partials/progression', { actuel: 2 }) %>
 
     <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
 
     <form method="POST" action="/demande/verification-email">
       <div class="champ">
-        <label>Code reçu par email</label>
+        <label>Code reçu <%= methodeActuelle === 'sms' ? 'par SMS' : 'par email' %></label>
         <input type="text" name="code" maxlength="6" inputmode="numeric" autocomplete="one-time-code"
                placeholder="123456" style="letter-spacing:6px; font-size:20px; text-align:center;" required autofocus>
       </div>
       <button type="submit" class="btn" style="width:100%;">Valider mon identité</button>
     </form>
 
-    <p style="text-align:center; margin-top:16px; font-size:13px;">
-      <a href="/demande/verification-email/renvoyer" style="color:var(--red-dark); font-weight:600;">Je n'ai rien reçu — renvoyer le code</a>
-    </p>
+    <% if (methodeActuelle === 'sms') { %>
+      <p style="text-align:center; margin-top:16px; font-size:13px;">
+        <a href="#" onclick="document.getElementById('form-sms').style.display='block'; this.parentElement.style.display='none'; return false;" style="color:var(--red-dark); font-weight:600;">Je n'ai pas reçu le SMS — réessayer</a>
+      </p>
+    <% } else { %>
+      <p style="text-align:center; margin-top:16px; font-size:13px;">
+        <a href="/demande/verification-email/renvoyer" style="color:var(--red-dark); font-weight:600;">Je n'ai rien reçu — renvoyer le code</a>
+      </p>
+      <p style="text-align:center; margin-top:6px; font-size:13px;">
+        <a href="#" id="lien-email-oublie" onclick="document.getElementById('form-sms').style.display='block'; this.style.display='none'; return false;" style="color:var(--gold-dark); font-weight:600;">Email oublié ? Recevoir le code par SMS</a>
+      </p>
+    <% } %>
+
     <p style="text-align:center; font-size:11.5px; color:var(--ink-soft); margin-top:6px;">
       Pensez à vérifier vos courriers indésirables. Le code est valable 10 minutes.
     </p>
+
+    <div id="form-sms" style="display:none; margin-top:18px; padding-top:18px; border-top:1px solid var(--line);">
+      <% if (!smsActif) { %>
+        <p style="font-size:12.5px; color:var(--ink-soft); text-align:center;">
+          La vérification par SMS n'est pas disponible pour le moment. Merci d'utiliser votre email.
+        </p>
+      <% } else { %>
+        <form method="POST" action="/demande/verification-sms">
+          <div class="champ">
+            <label>Votre numéro de téléphone</label>
+            <input type="text" name="telephone_sms" placeholder="+237 6XX XXX XXX" required>
+          </div>
+          <button type="submit" class="btn secondaire" style="width:100%;">Recevoir le code par SMS</button>
+        </form>
+      <% } %>
+    </div>
   </div>
 </div>
 

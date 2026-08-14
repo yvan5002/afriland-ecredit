@@ -3,7 +3,7 @@
 <div class="container">
   <div class="card">
     <h2>Vos documents</h2>
-    <p class="souscription">Étape 4 sur 5 — Déposez un fichier <strong>PDF</strong> pour chacune des 8 pièces exigées.</p>
+    <p class="souscription">Étape 4 sur 5 — Déposez un fichier <strong>PDF ou une photo (JPG/PNG)</strong> pour chacune des 8 pièces exigées.</p>
     <%- include('partials/progression', { actuel: 4 }) %>
 
     <div class="info-reprise" style="border-color:var(--gold);">
@@ -14,11 +14,19 @@
 
     <form method="POST" action="/demande/documents" enctype="multipart/form-data" id="form-documents">
       <% documents.forEach(doc => { %>
+        <% const existant = documentsExistants[doc.cle]; %>
         <div class="doc-item" id="doc-item-<%= doc.cle %>">
           <div class="doc-num"><%= doc.numero %></div>
-          <div class="doc-label"><%= doc.label %></div>
+          <div class="doc-label">
+            <%= doc.label %>
+            <% if (existant) { %>
+              <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">
+                <span style="color:#1B5FA8; font-weight:700;">✓ Déjà déposé</span> — <%= existant.nom %>
+              </div>
+            <% } %>
+          </div>
           <span class="verif-live" id="verif-live-<%= doc.cle %>" aria-live="polite"></span>
-          <input type="file" name="<%= doc.cle %>" data-cle="<%= doc.cle %>" accept=".pdf,application/pdf" required>
+          <input type="file" name="<%= doc.cle %>" data-cle="<%= doc.cle %>" accept=".pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png" <%= existant ? '' : 'required' %>>
         </div>
       <% }) %>
       <div class="actions">
