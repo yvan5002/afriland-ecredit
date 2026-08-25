@@ -14,15 +14,15 @@
     <% } else { %>
       <div class="check">⏳</div>
       <h2>Votre demande est en cours d'examen</h2>
-      <p class="souscription">Un agent Afriland First Bank va examiner votre dossier. Revenez sur cette page à tout moment avec votre référence pour suivre son traitement.</p>
+      <p class="souscription">Un gestionnaire Afriland First Bank va examiner votre dossier. Revenez sur cette page à tout moment avec votre référence pour suivre son traitement.</p>
     <% } %>
 
     <div class="reference"><%= demande.reference %></div>
 
-    <% if ((demande.statut === 'acceptee' || demande.statut === 'refusee') && demande.commentaire_agent) { %>
-      <div class="commentaire-agent">
-        <strong><%= demande.statut === 'acceptee' ? 'Message de l’agent' : 'Motif' %></strong>
-        <p><%= demande.commentaire_agent %></p>
+    <% if ((demande.statut === 'acceptee' || demande.statut === 'refusee') && demande.commentaire_gestionnaire) { %>
+      <div class="commentaire-gestionnaire">
+        <strong><%= demande.statut === 'acceptee' ? 'Message de l’gestionnaire' : 'Motif' %></strong>
+        <p><%= demande.commentaire_gestionnaire %></p>
       </div>
     <% } %>
 

@@ -41,7 +41,7 @@
     </form>
 
     <p id="lien-camera-indisponible" style="display:none; text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:16px;">
-      Caméra indisponible sur cet appareil/navigateur ? Un agent pourra vérifier votre identité manuellement à partir de vos documents.
+      Caméra indisponible sur cet appareil/navigateur ? Un gestionnaire pourra vérifier votre identité manuellement à partir de vos documents.
       <br><a href="#" id="lien-passer" style="color:var(--red-dark); font-weight:600;">Continuer sans vérification automatique →</a>
     </p>
   </div>
@@ -84,7 +84,7 @@
     lienPasser.addEventListener("click", function (e) {
       e.preventDefault();
       autoriserContinuer(false, -1);
-      afficherResultat('<div class="verif-resultat ko">Vérification automatique non disponible — un agent vérifiera votre dossier manuellement.</div>');
+      afficherResultat('<div class="verif-resultat ko">Vérification automatique non disponible — un gestionnaire vérifiera votre dossier manuellement.</div>');
       formResultat.dispatchEvent(new Event("submit-direct"));
       formResultat.submit();
     });
@@ -143,7 +143,7 @@
           return;
         }
         if (!descripteurCni) {
-          afficherResultat('<div class="verif-resultat ko">Le visage n\'est pas détectable sur la photo de la CNI (qualité insuffisante) — un agent vérifiera manuellement.</div>');
+          afficherResultat('<div class="verif-resultat ko">Le visage n\'est pas détectable sur la photo de la CNI (qualité insuffisante) — un gestionnaire vérifiera manuellement.</div>');
           autoriserContinuer(false, -1);
           return;
         }
@@ -154,13 +154,13 @@
         if (correspond) {
           afficherResultat('<div class="verif-resultat ok">✓ Correspondance confirmée — c\'est bien vous.</div>');
         } else {
-          afficherResultat('<div class="verif-resultat ko">⚠ Le visage ne semble pas correspondre à la photo de la CNI. Un agent examinera votre dossier attentivement.</div>');
+          afficherResultat('<div class="verif-resultat ko">⚠ Le visage ne semble pas correspondre à la photo de la CNI. Un gestionnaire examinera votre dossier attentivement.</div>');
         }
         autoriserContinuer(correspond, distance);
         stream.getTracks().forEach(t => t.stop());
         btnCapturer.style.display = "none";
       } catch (e) {
-        afficherResultat('<div class="verif-resultat ko">Erreur lors de l\'analyse — un agent vérifiera votre dossier manuellement.</div>');
+        afficherResultat('<div class="verif-resultat ko">Erreur lors de l\'analyse — un gestionnaire vérifiera votre dossier manuellement.</div>');
         autoriserContinuer(false, -1);
         btnCapturer.disabled = false; btnCapturer.textContent = "📸 Prendre la photo et comparer";
       }

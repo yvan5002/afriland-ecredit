@@ -31,20 +31,34 @@ const DOCUMENTS_REQUIS = [
 
 // ------------------------------------------------------------
 // Reconnaissance automatique du contenu des documents
-// Approche : lecture du texte du PDF (pdf-parse) + recherche de
-// mots-clés propres à chaque pièce. Un document scanné (image,
-// sans couche de texte) ne peut pas être analysé ainsi : il est
-// simplement marqué "à vérifier manuellement" plutôt que rejeté.
+// Approche : lecture du texte du PDF (texte natif ou OCR pour les
+// scans/photos) + recherche de mots-clés propres à chaque pièce.
+//
+// IMPORTANT : la comparaison ignore les accents et la casse. L'OCR
+// (tesseract.js) restitue très souvent mal les accents sur des
+// documents scannés/photographiés ("Republique" au lieu de
+// "République") — sans cette normalisation, un document pourtant
+// correct n'était quasiment jamais reconnu.
 // ------------------------------------------------------------
+function normaliser(texte) {
+  return (texte || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // retire les accents
+    .replace(/\s+/g, " ");
+}
+
+// Mots-clés volontairement courts et sans accent (normalisés une fois ici) :
+// plus un mot-clé est long/précis, plus il est fragile face aux erreurs
+// d'OCR (accents ratés, lettres confondues, mots coupés).
 const MOTS_CLES = {
-  demande_signee: ["demande de crédit", "directeur général", "je soussigné", "j'ai l'honneur"],
-  cni: ["carte nationale d'identité", "république du cameroun", "republic of cameroon", "date de naissance"],
-  bulletins_paie: ["bulletin de paie", "bulletin de salaire", "net à payer", "salaire brut"],
-  attestation_virement: ["virement irrévocable", "attestation de virement", "domiciliation"],
-  attestation_travail: ["attestation de travail", "atteste que", "présence effective"],
-  contrat_travail: ["contrat de travail", "employeur", "durée indéterminée", "durée déterminée"],
-  niu: ["numéro d'identifiant unique", " niu ", "contribuable"],
-  plan_localisation: ["plan de localisation", "localisation", "itinéraire"],
+  demande_signee: ["demande de credit", "directeur general", "je soussigne", "j'ai l'honneur", "monsieur le directeur"],
+  cni: ["carte nationale", "identite", "republique du cameroun", "date de naissance", "sexe", "profession"],
+  bulletins_paie: ["bulletin de paie", "bulletin de salaire", "net a payer", "salaire brut", "cotisation", "retenue"],
+  attestation_virement: ["virement irrevocable", "attestation de virement", "domiciliation", "virement de salaire"],
+  attestation_travail: ["attestation de travail", "atteste que", "presence effective", "en service depuis"],
+  contrat_travail: ["contrat de travail", "employeur", "duree indeterminee", "duree determinee", "salarie"],
+  niu: ["identifiant unique", "niu", "contribuable", "numero contribuable"],
+  plan_localisation: ["plan de localisation", "localisation", "itineraire", "quartier", "point de repere"],
 };
 
 async function extraireTexte(buffer) {
@@ -78,13 +92,13 @@ async function verifierDocument(cle, buffer, mimetype) {
     // Photo directe (JPG/PNG) : lecture optique immédiate, pas d'étape de texte numérique.
     try {
       const texteOCR = await texteParOCRImage(buffer, mimetype);
-      texte = " " + (texteOCR || "").toLowerCase().replace(/\s+/g, " ") + " ";
+      texte = " " + normaliser(texteOCR) + " ";
     } catch (e) {
       console.error(">>> [ERREUR OCR IMAGE]", e.message || e);
     }
   } else {
     try {
-      texte = " " + (await extraireTexte(buffer)).toLowerCase().replace(/\s+/g, " ") + " ";
+      texte = " " + normaliser(await extraireTexte(buffer)) + " ";
     } catch (e) {
       return { statut: "invalide", details: "Ce fichier PDF est illisible ou corrompu." };
     }
@@ -95,7 +109,7 @@ async function verifierDocument(cle, buffer, mimetype) {
       try {
         const texteOCR = await texteParOCR(buffer);
         if (texteOCR && texteOCR.trim()) {
-          texte = " " + texteOCR.toLowerCase().replace(/\s+/g, " ") + " ";
+          texte = " " + normaliser(texteOCR) + " ";
         }
       } catch (e) {
         console.error(">>> [ERREUR OCR]", e.message || e);
@@ -104,7 +118,7 @@ async function verifierDocument(cle, buffer, mimetype) {
   }
 
   if (!texte.trim()) {
-    return { statut: "a_verifier", details: "Document illisible automatiquement (image de mauvaise qualité) — vérification manuelle par l'agent." };
+    return { statut: "a_verifier", details: "Document illisible automatiquement (image de mauvaise qualité) — vérification manuelle par l'gestionnaire." };
   }
 
   const scorePropre = (MOTS_CLES[cle] || []).filter(m => texte.includes(m)).length;
@@ -120,7 +134,7 @@ async function verifierDocument(cle, buffer, mimetype) {
     return { statut: "suspect", details: `Ce fichier ressemble plutôt à : « ${autreLabel} ». Vérifiez votre dépôt.` };
   }
   if (scorePropre >= 1) return { statut: "reconnu", details: null };
-  return { statut: "a_verifier", details: "Contenu non reconnu automatiquement — vérification manuelle par l'agent." };
+  return { statut: "a_verifier", details: "Contenu non reconnu automatiquement — vérification manuelle par l'gestionnaire." };
 }
 
 // ------------------------------------------------------------
@@ -336,6 +350,12 @@ router.get("/", (req, res) => {
     titre: "Afriland E-Crédit — Demande de crédit en ligne",
     enCours: !!enCours,
   });
+});
+
+// Parcours Entreprise : page d'attente pour l'instant (le formulaire dédié
+// sera ajouté séparément, une fois le circuit Particulier bien validé).
+router.get("/demande-entreprise", (req, res) => {
+  res.render("entreprise_bientot", { titre: "Demande de crédit Entreprise — Afriland E-Crédit" });
 });
 
 // ============================================================

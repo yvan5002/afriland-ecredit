@@ -1,0 +1,27 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:420px;">
+  <a href="/" class="lien-retour">← Retour à l'accueil</a>
+  <div class="card">
+    <h2>Espace gestionnaire</h2>
+    <p class="souscription">Connectez-vous pour traiter les demandes de crédit reçues.</p>
+
+    <% if (erreur) { %>
+      <div class="erreur"><%= erreur %></div>
+    <% } %>
+
+    <form method="POST" action="/gestionnaire/connexion">
+      <div class="champ">
+        <label>Identifiant</label>
+        <input type="text" name="identifiant" required autofocus>
+      </div>
+      <div class="champ">
+        <label>Mot de passe</label>
+        <input type="password" name="mdp" required>
+      </div>
+      <button type="submit" class="btn" style="width:100%;">Se connecter</button>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

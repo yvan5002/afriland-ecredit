@@ -69,6 +69,7 @@ h1,h2,h3{font-family:var(--font-titre);}
 .hero .eyebrow svg{width:13px; height:13px;}
 .hero h1{font-size:38px; font-weight:600; color:var(--red-dark); margin-bottom:16px; line-height:1.22; letter-spacing:-.3px;}
 .hero p{font-size:16px; color:var(--ink-soft); max-width:600px; margin:0 auto 30px;}
+.choix-profil{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:10px;}
 
 .btn{display:inline-flex; align-items:center; gap:8px; background:linear-gradient(120deg, var(--red), var(--red-dark)); color:#fff;
   padding:14px 34px; border-radius:30px; font-weight:700; font-size:15px; border:none; cursor:pointer;
@@ -140,20 +141,20 @@ footer{text-align:center; padding:26px 20px 30px; font-size:11px; color:var(--in
 footer::before{content:''; display:block; height:6px; margin:0 auto 24px; max-width:180px; border-radius:3px;
   background:var(--motif-or-sur-creme); background-size:24px 24px; opacity:.9;}
 
-/* ---------------- Espace agent / superviseur ---------------- */
-.agent-entete{display:flex; justify-content:space-between; align-items:center; padding:30px 0 20px;}
-.agent-entete .btn.secondaire{padding:9px 20px; font-size:13px;}
+/* ---------------- Espace gestionnaire / directeur ---------------- */
+.gestionnaire-entete{display:flex; justify-content:space-between; align-items:center; padding:30px 0 20px;}
+.gestionnaire-entete .btn.secondaire{padding:9px 20px; font-size:13px;}
 
-.agent-compteurs{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px;}
+.gestionnaire-compteurs{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px;}
 .compteur-item{background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center;}
 .compteur-item .compteur-chiffre{font-size:27px; font-weight:800; color:var(--red-dark); font-family:var(--font-titre);}
 .compteur-item.ok .compteur-chiffre{color:var(--green);}
 .compteur-item.refus .compteur-chiffre{color:var(--red);}
 .compteur-item .compteur-label{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.4px; margin-top:4px;}
 
-.agent-onglets{display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--line);}
-.agent-onglets a{padding:10px 16px; font-size:13px; font-weight:600; color:var(--ink-soft); border-bottom:2px solid transparent;}
-.agent-onglets a.actif{color:var(--red-dark); border-bottom-color:var(--red);}
+.gestionnaire-onglets{display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--line);}
+.gestionnaire-onglets a{padding:10px 16px; font-size:13px; font-weight:600; color:var(--ink-soft); border-bottom:2px solid transparent;}
+.gestionnaire-onglets a.actif{color:var(--red-dark); border-bottom-color:var(--red);}
 
 .table-demandes{width:100%; border-collapse:collapse; font-size:13px;}
 .table-demandes th{text-align:left; background:var(--paper); color:var(--ink-soft); font-size:10.5px;
@@ -180,7 +181,7 @@ footer::before{content:''; display:block; height:6px; margin:0 auto 24px; max-wi
   border-radius:8px; font-size:13px; margin-bottom:20px;}
 .info-reprise a{color:var(--red-dark); font-weight:700; text-decoration:underline;}
 
-/* ---------------- Verification documents (etape agent) ---------------- */
+/* ---------------- Verification documents (etape gestionnaire) ---------------- */
 .badge-verif{font-size:10px; font-weight:700; padding:3px 9px; border-radius:12px; margin-right:10px; white-space:nowrap;}
 .badge-verif.ok{background:var(--green-pale); color:var(--green);}
 .badge-verif.attention{background:#FCEFD9; color:#8C6A2E;}
@@ -195,11 +196,11 @@ footer::before{content:''; display:block; height:6px; margin:0 auto 24px; max-wi
 /* ---------------- Confirmation / statut client ---------------- */
 .confirmation-box .check.ok{background:var(--green-pale); color:var(--green);}
 .confirmation-box .check.ko{background:#FBEAEC; color:var(--red-dark);}
-.commentaire-agent{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:14px 16px; text-align:left; margin-top:16px;}
-.commentaire-agent strong{font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--gold-dark);}
-.commentaire-agent p{font-size:13.5px; margin-top:6px; color:var(--ink);}
+.commentaire-gestionnaire{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:14px 16px; text-align:left; margin-top:16px;}
+.commentaire-gestionnaire strong{font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--gold-dark);}
+.commentaire-gestionnaire p{font-size:13.5px; margin-top:6px; color:var(--ink);}
 
-/* ---------------- Statistiques superviseur ---------------- */
+/* ---------------- Statistiques directeur ---------------- */
 .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:26px;}
 .stat-item{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; text-align:center;}
 .stat-item .stat-chiffre{font-size:24px; font-weight:800; color:var(--red-dark); font-family:var(--font-titre);}
@@ -211,7 +212,7 @@ footer::before{content:''; display:block; height:6px; margin:0 auto 24px; max-wi
   .cartes{grid-template-columns:1fr;}
   .grid2{grid-template-columns:1fr;}
   .card{padding:22px 18px;}
-  .agent-compteurs{grid-template-columns:1fr;}
+  .gestionnaire-compteurs{grid-template-columns:1fr;}
   .stat-grid{grid-template-columns:1fr 1fr;}
   .table-demandes{font-size:12px;}
   .table-demandes th, .table-demandes td{padding:10px;}
@@ -226,9 +227,9 @@ footer::before{content:''; display:block; height:6px; margin:0 auto 24px; max-wi
   .topbar .lien-suivi{padding:6px 11px; font-size:10.5px;}
   .container{padding:24px 14px 60px;}
   .etapes span{font-size:9px;}
-  .agent-entete{flex-direction:column; align-items:flex-start; gap:12px;}
-  .agent-entete form{width:100%;}
-  .agent-entete .btn.secondaire{width:100%; text-align:center; justify-content:center;}
+  .gestionnaire-entete{flex-direction:column; align-items:flex-start; gap:12px;}
+  .gestionnaire-entete form{width:100%;}
+  .gestionnaire-entete .btn.secondaire{width:100%; text-align:center; justify-content:center;}
   .actions{flex-direction:column-reverse; gap:10px;}
   .actions .btn, .actions a.btn{width:100%; justify-content:center; text-align:center;}
   .doc-item{flex-wrap:wrap;}

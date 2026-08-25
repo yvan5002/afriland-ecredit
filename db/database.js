@@ -15,16 +15,16 @@ const DB_PATH = path.join(__dirname, "ecredit.json");
 const adapter = new FileSync(DB_PATH);
 const db = low(adapter);
 
-db.defaults({ demandes: [], brouillons: [], agents: [] }).write();
+db.defaults({ demandes: [], brouillons: [], gestionnaires: [] }).write();
 
-// Crée un premier agent par défaut au tout premier démarrage, pour ne pas
-// casser l'accès si aucun agent n'a encore été créé depuis l'espace superviseur.
-if (db.get("agents").value().length === 0) {
-  db.get("agents").push({
+// Crée un premier gestionnaire par défaut au tout premier démarrage, pour ne pas
+// casser l'accès si aucun gestionnaire n'a encore été créé depuis l'espace directeur d'agence.
+if (db.get("gestionnaires").value().length === 0) {
+  db.get("gestionnaires").push({
     id: 1,
-    identifiant: "agent",
+    identifiant: "gestionnaire",
     mdp_hash: bcrypt.hashSync("afriland2026", 10),
-    nom: "Agent Afriland",
+    nom: "Gestionnaire Afriland",
     actif: true,
     date_creation: new Date().toISOString(),
   }).write();
@@ -64,13 +64,13 @@ function compterParStatut(statut) {
   return db.get("demandes").filter({ statut }).size().value();
 }
 
-function enregistrerDecision(id, { statut, commentaire, agentNom }) {
+function enregistrerDecision(id, { statut, commentaire, gestionnaireNom }) {
   return db.get("demandes")
     .find({ id: parseInt(id) })
     .assign({
       statut,
-      commentaire_agent: commentaire,
-      agent_nom: agentNom,
+      commentaire_gestionnaire: commentaire,
+      gestionnaire_nom: gestionnaireNom,
       date_traitement: new Date().toISOString(),
     })
     .write();
@@ -106,7 +106,7 @@ function supprimerBrouillon(id) {
 }
 
 // ------------------------------------------------------------
-// Vue d'ensemble — réservée à l'espace superviseur : toutes les
+// Vue d'ensemble — réservée à l'espace directeur d'agence : toutes les
 // demandes tous statuts confondus, plus quelques agrégats utiles
 // pour le pilotage (volume traité, taux d'acceptation, montants).
 // ------------------------------------------------------------
@@ -127,65 +127,65 @@ function statistiquesGlobales() {
     .filter(d => d.statut === "acceptee")
     .reduce((s, d) => s + (Number(d.montant) || 0), 0);
 
-  const parAgent = {};
+  const parGestionnaire = {};
   toutes.forEach(d => {
-    if (!d.agent_nom) return;
-    if (!parAgent[d.agent_nom]) parAgent[d.agent_nom] = { agent_nom: d.agent_nom, acceptee: 0, refusee: 0 };
-    if (d.statut === "acceptee") parAgent[d.agent_nom].acceptee += 1;
-    if (d.statut === "refusee") parAgent[d.agent_nom].refusee += 1;
+    if (!d.gestionnaire_nom) return;
+    if (!parGestionnaire[d.gestionnaire_nom]) parGestionnaire[d.gestionnaire_nom] = { gestionnaire_nom: d.gestionnaire_nom, acceptee: 0, refusee: 0 };
+    if (d.statut === "acceptee") parGestionnaire[d.gestionnaire_nom].acceptee += 1;
+    if (d.statut === "refusee") parGestionnaire[d.gestionnaire_nom].refusee += 1;
   });
 
   return {
     total, nouvelle, acceptee, refusee, traitees, tauxAcceptation,
     montantTotalDemande, montantAccorde,
-    parAgent: Object.values(parAgent),
+    parGestionnaire: Object.values(parGestionnaire),
   };
 }
 
 // ------------------------------------------------------------
-// Gestion des agents — créés et désactivés ("déconnectés") depuis
-// l'espace superviseur. Le mot de passe n'est jamais stocké en
-// clair (bcrypt), et un agent désactivé est bloqué à sa toute
+// Gestion des gestionnaires — créés et désactivés ("déconnectés") depuis
+// l'espace directeur d'agence. Le mot de passe n'est jamais stocké en
+// clair (bcrypt), et un gestionnaire désactivé est bloqué à sa toute
 // prochaine requête, même s'il était déjà connecté.
 // ------------------------------------------------------------
-function genererIdAgent() {
-  const agents = db.get("agents").value();
-  return agents.length ? Math.max(...agents.map(a => a.id)) + 1 : 1;
+function genererIdGestionnaire() {
+  const gestionnaires = db.get("gestionnaires").value();
+  return gestionnaires.length ? Math.max(...gestionnaires.map(a => a.id)) + 1 : 1;
 }
 
-function listerAgents() {
-  return db.get("agents").sortBy("date_creation").value();
+function listerGestionnaires() {
+  return db.get("gestionnaires").sortBy("date_creation").value();
 }
 
-function creerAgent({ identifiant, mdp, nom }) {
-  const agent = {
-    id: genererIdAgent(),
+function creerGestionnaire({ identifiant, mdp, nom }) {
+  const gestionnaire = {
+    id: genererIdGestionnaire(),
     identifiant,
     mdp_hash: bcrypt.hashSync(mdp, 10),
     nom,
     actif: true,
     date_creation: new Date().toISOString(),
   };
-  db.get("agents").push(agent).write();
-  return agent;
+  db.get("gestionnaires").push(gestionnaire).write();
+  return gestionnaire;
 }
 
-function trouverAgentParIdentifiant(identifiant) {
-  return db.get("agents").find({ identifiant }).value();
+function trouverGestionnaireParIdentifiant(identifiant) {
+  return db.get("gestionnaires").find({ identifiant }).value();
 }
 
-function trouverAgentParId(id) {
-  return db.get("agents").find({ id: parseInt(id) }).value();
+function trouverGestionnaireParId(id) {
+  return db.get("gestionnaires").find({ id: parseInt(id) }).value();
 }
 
-function definirActifAgent(id, actif) {
-  db.get("agents").find({ id: parseInt(id) }).assign({ actif }).write();
+function definirActifGestionnaire(id, actif) {
+  db.get("gestionnaires").find({ id: parseInt(id) }).assign({ actif }).write();
 }
 
-function verifierMdpAgent(identifiant, mdp) {
-  const agent = trouverAgentParIdentifiant(identifiant);
-  if (!agent || !agent.actif) return null;
-  return bcrypt.compareSync(mdp, agent.mdp_hash) ? agent : null;
+function verifierMdpGestionnaire(identifiant, mdp) {
+  const gestionnaire = trouverGestionnaireParIdentifiant(identifiant);
+  if (!gestionnaire || !gestionnaire.actif) return null;
+  return bcrypt.compareSync(mdp, gestionnaire.mdp_hash) ? gestionnaire : null;
 }
 
 module.exports = {
@@ -193,6 +193,6 @@ module.exports = {
   listerDemandesParStatut, compterParStatut, enregistrerDecision,
   sauvegarderBrouillon, trouverBrouillon, supprimerBrouillon,
   listerToutesDemandes, statistiquesGlobales,
-  listerAgents, creerAgent, trouverAgentParIdentifiant, trouverAgentParId,
-  definirActifAgent, verifierMdpAgent,
+  listerGestionnaires, creerGestionnaire, trouverGestionnaireParIdentifiant, trouverGestionnaireParId,
+  definirActifGestionnaire, verifierMdpGestionnaire,
 };
