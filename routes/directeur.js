@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   listerToutesDemandes, statistiquesGlobales, trouverParId,
-  listerGestionnaires, creerGestionnaire, trouverGestionnaireParId, definirActifGestionnaire, trouverGestionnaireParIdentifiant,
+  listerComptes, creerCompte, trouverCompteParId, definirActifCompte, trouverCompteParIdentifiant,
 } = require("../db/database");
 
 // ------------------------------------------------------------
@@ -13,6 +13,9 @@ const {
 const DIRECTEUR_IDENTIFIANT = "directeur";
 const DIRECTEUR_MDP = "directeur2026";
 const DIRECTEUR_NOM = "Directeur Afriland";
+
+const ROLES_VALIDES = ["gestionnairegfc", "pme", "corporate", "chef_pme"];
+const LABEL_ROLE = { gestionnairegfc: "Gestionnaire GFC (particuliers)", pme: "PME", corporate: "Corporate", chef_pme: "Chef des PME" };
 
 function exigerDirecteur(req, res, next) {
   if (req.session.directeurConnecte) return next();
@@ -61,51 +64,56 @@ router.get("/demande/:id", exigerDirecteur, (req, res) => {
 });
 
 // ============================================================
-// GESTION DES GESTIONNAIRES — créer un compte gestionnaire, le désactiver
-// ("déconnecter") ou le réactiver.
+// GESTION DES COMPTES — gestionnaire GFC, PME, corporate : créer,
+// désactiver ("déconnecter") ou réactiver un compte de n'importe
+// lequel des 3 espaces de traitement.
 // ============================================================
 router.get("/gestionnaires", exigerDirecteur, (req, res) => {
   res.render("directeur_gestionnaires", {
-    titre: "Gestion des gestionnaires — Espace directeur d'agence",
-    gestionnaires: listerGestionnaires(),
+    titre: "Gestion des comptes — Espace directeur d'agence",
+    comptes: listerComptes(),
+    labelRole: LABEL_ROLE,
     erreur: null,
     succes: null,
   });
 });
 
 router.post("/gestionnaires", exigerDirecteur, (req, res) => {
-  const { identifiant, mdp, nom } = req.body;
+  const { identifiant, mdp, nom, role } = req.body;
   const rendre = (erreur, succes) => res.render("directeur_gestionnaires", {
-    titre: "Gestion des gestionnaires — Espace directeur d'agence",
-    gestionnaires: listerGestionnaires(), erreur, succes,
+    titre: "Gestion des comptes — Espace directeur d'agence",
+    comptes: listerComptes(), labelRole: LABEL_ROLE, erreur, succes,
   });
 
   const idPropre = (identifiant || "").trim();
   const nomPropre = (nom || "").trim();
 
-  if (!idPropre || !mdp || !nomPropre) {
-    return rendre("Merci de compléter l'identifiant, le mot de passe et le nom complet.", null);
+  if (!idPropre || !mdp || !nomPropre || !role) {
+    return rendre("Merci de compléter l'identifiant, le mot de passe, le nom complet et l'espace concerné.", null);
+  }
+  if (!ROLES_VALIDES.includes(role)) {
+    return rendre("Espace invalide.", null);
   }
   if (mdp.length < 6) {
     return rendre("Le mot de passe doit contenir au moins 6 caractères.", null);
   }
-  if (trouverGestionnaireParIdentifiant(idPropre)) {
-    return rendre("Cet identifiant est déjà utilisé par un autre gestionnaire.", null);
+  if (trouverCompteParIdentifiant(idPropre)) {
+    return rendre("Cet identifiant est déjà utilisé par un autre compte.", null);
   }
 
-  creerGestionnaire({ identifiant: idPropre, mdp, nom: nomPropre });
-  rendre(null, `Le compte gestionnaire « ${idPropre} » a bien été créé.`);
+  creerCompte({ identifiant: idPropre, mdp, nom: nomPropre, role });
+  rendre(null, `Le compte « ${idPropre} » (${LABEL_ROLE[role]}) a bien été créé.`);
 });
 
 router.post("/gestionnaires/:id/desactiver", exigerDirecteur, (req, res) => {
-  const gestionnaire = trouverGestionnaireParId(req.params.id);
-  if (gestionnaire) definirActifGestionnaire(gestionnaire.id, false);
+  const compte = trouverCompteParId(req.params.id);
+  if (compte) definirActifCompte(compte.id, false);
   res.redirect("/directeur/gestionnaires");
 });
 
 router.post("/gestionnaires/:id/reactiver", exigerDirecteur, (req, res) => {
-  const gestionnaire = trouverGestionnaireParId(req.params.id);
-  if (gestionnaire) definirActifGestionnaire(gestionnaire.id, true);
+  const compte = trouverCompteParId(req.params.id);
+  if (compte) definirActifCompte(compte.id, true);
   res.redirect("/directeur/gestionnaires");
 });
 

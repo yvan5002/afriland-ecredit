@@ -1,0 +1,68 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <a href="/demande-entreprise" class="lien-retour" style="display:inline-block; margin-bottom:16px;">← Changer de catégorie</a>
+    <h2>Votre entreprise</h2>
+    <p class="souscription">Étape 1 sur 5 — Dossier <strong><%= labelType %></strong>. Renseignez l'identité de l'entreprise et de son représentant légal.</p>
+
+    <% if (reprise && donnees.raison_sociale) { %>
+      <div class="info-reprise">
+        Nous avons retrouvé un dossier commencé précédemment — vos informations ont été pré-remplies.
+        <a href="/demande-entreprise/<%= type %>/nouveau">Recommencer à zéro</a> si ce n'est pas le vôtre.
+      </div>
+    <% } %>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <form method="POST" action="/demande-entreprise/<%= type %>/infos">
+      <div class="champ">
+        <label>Raison sociale</label>
+        <input type="text" name="raison_sociale" value="<%= donnees.raison_sociale || '' %>" required>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Numéro RCCM</label>
+          <input type="text" name="rccm" value="<%= donnees.rccm || '' %>" required>
+        </div>
+        <div class="champ">
+          <label>NIU de l'entreprise</label>
+          <input type="text" name="niu_entreprise" value="<%= donnees.niu_entreprise || '' %>" required>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Secteur d'activité</label>
+        <input type="text" name="secteur_activite" placeholder="Ex : BTP, commerce, agro-industrie..." value="<%= donnees.secteur_activite || '' %>">
+      </div>
+
+      <h3 class="section-titre">Représentant légal</h3>
+      <div class="grid2">
+        <div class="champ">
+          <label>Nom</label>
+          <input type="text" name="representant_nom" value="<%= donnees.representant_nom || '' %>" required>
+        </div>
+        <div class="champ">
+          <label>Prénom</label>
+          <input type="text" name="representant_prenom" value="<%= donnees.representant_prenom || '' %>" required>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Email</label>
+          <input type="email" name="email" value="<%= donnees.email || '' %>" required>
+        </div>
+        <div class="champ">
+          <label>Téléphone</label>
+          <input type="text" name="telephone" placeholder="+237 6XX XXX XXX" value="<%= donnees.telephone || '' %>" required>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span></span>
+        <button type="submit" class="btn">Recevoir le code de vérification →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

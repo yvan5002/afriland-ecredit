@@ -1,0 +1,48 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <h2>Récapitulatif</h2>
+    <p class="souscription">Vérifiez vos informations avant l'envoi. Un code de suivi vous sera fourni juste après.</p>
+
+    <h3 class="section-titre" style="margin-top:20px;">Entreprise</h3>
+    <div class="recap-ligne"><span>Raison sociale</span><span><%= d.raison_sociale || '—' %></span></div>
+    <div class="recap-ligne"><span>RCCM</span><span><%= d.rccm || '—' %></span></div>
+    <div class="recap-ligne"><span>NIU</span><span><%= d.niu || '—' %></span></div>
+    <div class="recap-ligne"><span>Forme juridique</span><span><%= d.forme_juridique || '—' %></span></div>
+    <div class="recap-ligne"><span>Adresse</span><span><%= d.adresse || '—' %></span></div>
+
+    <h3 class="section-titre">Crédit demandé</h3>
+    <div class="recap-ligne"><span>Montant</span><span><%= d.montant_credit ? Number(d.montant_credit).toLocaleString('fr-FR') + ' FCFA' : '—' %></span></div>
+    <div class="recap-ligne"><span>But du crédit</span><span><%= d.but_credit || '—' %></span></div>
+
+    <h3 class="section-titre">Contact</h3>
+    <div class="recap-ligne"><span>Représentant</span><span><%= (d.representant_prenom || d.representant_nom) ? (d.representant_prenom + ' ' + d.representant_nom) : '—' %></span></div>
+    <div class="recap-ligne"><span>Email</span><span><%= d.email %></span></div>
+    <div class="recap-ligne"><span>Téléphone</span><span><%= d.telephone || '—' %></span></div>
+    <div class="recap-ligne"><span>Identité vérifiée</span><span>✅ Confirmée par email</span></div>
+    <div class="recap-ligne"><span>Agent choisi</span><span><%= d.agent_assigne_nom %></span></div>
+
+    <h3 class="section-titre">Documents déposés</h3>
+    <% const cles = Object.keys(d.documents || {}); %>
+    <% if (!cles.length) { %>
+      <p style="color:var(--ink-soft); font-size:13px;">Aucun document déposé — vous pourrez les transmettre à votre agent par la suite.</p>
+    <% } else { %>
+      <% cles.forEach(cle => { %>
+        <div class="doc-item">
+          <div class="doc-num">✓</div>
+          <div class="doc-label"><%= d.documents[cle].libelle %></div>
+        </div>
+      <% }) %>
+    <% } %>
+
+    <form method="POST" action="/demande-entreprise/pme/soumettre">
+      <div class="actions" style="margin-top:24px;">
+        <a href="/demande-entreprise/pme/documents" class="btn secondaire">← Retour</a>
+        <button type="submit" class="btn">Envoyer ma demande</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

@@ -1,0 +1,35 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:560px;">
+  <div class="card">
+    <h2>Choisissez votre agent</h2>
+    <p class="souscription">Votre dossier sera envoyé directement à l'agent PME que vous sélectionnez ci-dessous.</p>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <form method="POST" action="/demande-entreprise/pme/choix-agent">
+      <div class="grid2" style="gap:12px;">
+        <% agents.forEach(a => { %>
+          <label class="carte-agent <%= agentSelectionne === a.identifiant ? 'selectionne' : '' %>">
+            <input type="radio" name="agent_assigne" value="<%= a.identifiant %>" <%= agentSelectionne === a.identifiant ? 'checked' : '' %> required>
+            <span><%= a.nom %></span>
+          </label>
+        <% }) %>
+      </div>
+      <div class="actions" style="margin-top:20px;">
+        <span></span>
+        <button type="submit" class="btn">Continuer →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .carte-agent{display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; cursor:pointer; font-weight:600; font-size:14px;}
+  .carte-agent:hover{border-color:var(--gold);}
+  .carte-agent.selectionne{border-color:var(--red); background:#FBEAEC;}
+  .carte-agent input{accent-color:var(--red);}
+</style>
+
+<%- include('partials/pied') %>

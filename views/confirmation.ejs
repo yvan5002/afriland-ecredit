@@ -19,10 +19,10 @@
 
     <div class="reference"><%= demande.reference %></div>
 
-    <% if ((demande.statut === 'acceptee' || demande.statut === 'refusee') && demande.commentaire_gestionnaire) { %>
+    <% if ((demande.statut === 'acceptee' || demande.statut === 'refusee') && demande.commentaire_decision) { %>
       <div class="commentaire-gestionnaire">
-        <strong><%= demande.statut === 'acceptee' ? 'Message de l’gestionnaire' : 'Motif' %></strong>
-        <p><%= demande.commentaire_gestionnaire %></p>
+        <strong><%= demande.statut === 'acceptee' ? 'Message du gestionnaire' : 'Motif' %></strong>
+        <p><%= demande.commentaire_decision %></p>
       </div>
     <% } %>
 

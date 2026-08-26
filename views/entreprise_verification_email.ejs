@@ -1,0 +1,28 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:460px;">
+  <div class="card">
+    <h2>Vérification</h2>
+    <p class="souscription">Étape 2 sur 5 — Un code à 6 chiffres a été envoyé à <strong><%= emailMasque %></strong>.</p>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <form method="POST" action="/demande-entreprise/<%= type %>/verification-email">
+      <div class="champ">
+        <label>Code reçu par email</label>
+        <input type="text" name="code" maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+               placeholder="123456" style="letter-spacing:6px; font-size:20px; text-align:center;" required autofocus>
+      </div>
+      <button type="submit" class="btn" style="width:100%;">Valider</button>
+    </form>
+
+    <p style="text-align:center; margin-top:16px; font-size:13px;">
+      <a href="/demande-entreprise/<%= type %>/verification-email/renvoyer" style="color:var(--red-dark); font-weight:600;">Je n'ai rien reçu — renvoyer le code</a>
+    </p>
+    <p style="text-align:center; font-size:11.5px; color:var(--ink-soft); margin-top:6px;">
+      Pensez à vérifier vos courriers indésirables. Le code est valable 10 minutes.
+    </p>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

@@ -1,0 +1,79 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:960px;">
+
+  <div class="gestionnaire-entete">
+    <div>
+      <h2 style="color:var(--red-dark); margin-bottom:4px;">Espace Chef des PME</h2>
+      <p style="color:var(--ink-soft); font-size:13px;">Connecté(e) en tant que <strong><%= nomConnecte %></strong></p>
+    </div>
+    <form method="POST" action="/chef-pme/deconnexion">
+      <button type="submit" class="btn secondaire">Se déconnecter</button>
+    </form>
+  </div>
+
+  <div class="gestionnaire-compteurs">
+    <div class="compteur-item">
+      <div class="compteur-chiffre"><%= compteurs.enAttente %></div>
+      <div class="compteur-label">En attente de validation</div>
+    </div>
+    <div class="compteur-item ok">
+      <div class="compteur-chiffre"><%= compteurs.acceptee %></div>
+      <div class="compteur-label">Validés — Acceptés</div>
+    </div>
+    <div class="compteur-item refus">
+      <div class="compteur-chiffre"><%= compteurs.refusee %></div>
+      <div class="compteur-label">Validés — Refusés</div>
+    </div>
+  </div>
+
+  <div class="gestionnaire-onglets">
+    <a href="/chef-pme/tableau-bord" class="<%= vue === 'attente' ? 'actif' : '' %>">Dossiers à valider</a>
+    <a href="/chef-pme/historique" class="<%= vue === 'historique' ? 'actif' : '' %>">Historique des validations</a>
+  </div>
+
+  <% if (!demandes.length) { %>
+    <div class="card" style="text-align:center; color:var(--ink-soft);">
+      <% if (vue === 'attente') { %>
+        Aucun dossier en attente de validation pour le moment.
+      <% } else { %>
+        Aucune validation enregistrée pour le moment.
+      <% } %>
+    </div>
+  <% } else { %>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <table class="table-demandes">
+        <thead>
+          <tr>
+            <th>Référence</th>
+            <th>Entreprise</th>
+            <th>Montant</th>
+            <th>Agent</th>
+            <th>Recommandation</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% demandes.forEach(d => { %>
+            <tr>
+              <td class="mono"><%= d.reference %></td>
+              <td><%= d.nom_affiche %></td>
+              <td><%= d.montant ? Number(d.montant).toLocaleString('fr-FR') + ' FCFA' : '—' %></td>
+              <td><%= d.recommandation_agent_nom || d.traite_par_nom || '—' %></td>
+              <td>
+                <% if (d.statut === 'recommandee_acceptee') { %><span class="badge badge-acceptee">Acceptation</span><% } %>
+                <% if (d.statut === 'recommandee_refusee') { %><span class="badge badge-refusee">Refus</span><% } %>
+                <% if (d.statut === 'acceptee') { %><span class="badge badge-acceptee">Validé — Accepté</span><% } %>
+                <% if (d.statut === 'refusee') { %><span class="badge badge-refusee">Validé — Refusé</span><% } %>
+              </td>
+              <td><a href="/chef-pme/demande/<%= d.id %>" class="lien-voir">Voir →</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+</div>
+
+<%- include('partials/pied') %>

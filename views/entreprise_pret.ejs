@@ -1,0 +1,34 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <h2>Votre demande de crédit</h2>
+    <p class="souscription">Étape 3 sur 5 — Montant, durée et objet du financement.</p>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <form method="POST" action="/demande-entreprise/<%= type %>/pret">
+      <div class="grid2">
+        <div class="champ">
+          <label>Montant souhaité (FCFA)</label>
+          <input type="number" name="montant" min="500000" placeholder="Minimum 500 000" value="<%= donnees.montant || '' %>" required>
+        </div>
+        <div class="champ">
+          <label>Durée (mois)</label>
+          <input type="number" name="duree" min="1" max="120" value="<%= donnees.duree || '' %>" required>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Objet du crédit</label>
+        <input type="text" name="motif" placeholder="Ex : financement de stock, acquisition d'équipement..." value="<%= donnees.motif || '' %>" required>
+      </div>
+
+      <div class="actions">
+        <a href="/demande-entreprise/<%= type %>" class="btn secondaire">← Retour</a>
+        <button type="submit" class="btn">Continuer →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

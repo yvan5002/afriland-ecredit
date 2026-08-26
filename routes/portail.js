@@ -5,10 +5,11 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
-const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+const { genererCodeOTP, envoyerCodeParEmail, masquerEmail } = require("../modele/email");
 const { texteParOCR, texteParOCRImage, extraireImagePNGDuPDF, imageBruteVersPNG } = require("../modele/ocr");
+const { normaliser, verifierDocument } = require("../modele/verification");
 const { evaluerRisque } = require("../modele/risque");
+const { calculerRemboursement } = require("../modele/remboursement");
 const { SMS_ACTIF, envoyerCodeParSMS, verifierCodeSMS } = require("../modele/sms");
 const {
   creerDemande, trouverParReference,
@@ -29,27 +30,22 @@ const DOCUMENTS_REQUIS = [
   { cle: "plan_localisation", numero: 8, label: "Plan de localisation" },
 ];
 
-// ------------------------------------------------------------
-// Reconnaissance automatique du contenu des documents
-// Approche : lecture du texte du PDF (texte natif ou OCR pour les
-// scans/photos) + recherche de mots-clés propres à chaque pièce.
-//
-// IMPORTANT : la comparaison ignore les accents et la casse. L'OCR
-// (tesseract.js) restitue très souvent mal les accents sur des
-// documents scannés/photographiés ("Republique" au lieu de
-// "République") — sans cette normalisation, un document pourtant
-// correct n'était quasiment jamais reconnu.
-// ------------------------------------------------------------
-function normaliser(texte) {
-  return (texte || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // retire les accents
-    .replace(/\s+/g, " ");
-}
+// Gestionnaires nommés parmi lesquels le client choisit qui va traiter
+// son dossier — comptes créés automatiquement au démarrage (voir
+// db/database.js) avec des mots de passe simples fournis à l'agence.
+const AGENTS_PARTICULIER = [
+  { identifiant: "abomo", nom: "Mme Abomo" },
+  { identifiant: "mabou", nom: "Mme Mabou" },
+  { identifiant: "ngo", nom: "Mme Ngo" },
+  { identifiant: "emile", nom: "Mr Emile" },
+];
 
-// Mots-clés volontairement courts et sans accent (normalisés une fois ici) :
-// plus un mot-clé est long/précis, plus il est fragile face aux erreurs
-// d'OCR (accents ratés, lettres confondues, mots coupés).
+// ------------------------------------------------------------
+// Reconnaissance automatique du contenu des documents (particulier)
+// Mots-clés volontairement courts et sans accent (comparaison
+// normalisée dans modele/verification.js) : plus un mot-clé est
+// long/précis, plus il est fragile face aux erreurs d'OCR.
+// ------------------------------------------------------------
 const MOTS_CLES = {
   demande_signee: ["demande de credit", "directeur general", "je soussigne", "j'ai l'honneur", "monsieur le directeur"],
   cni: ["carte nationale", "identite", "republique du cameroun", "date de naissance", "sexe", "profession"],
@@ -61,84 +57,8 @@ const MOTS_CLES = {
   plan_localisation: ["plan de localisation", "localisation", "itineraire", "quartier", "point de repere"],
 };
 
-async function extraireTexte(buffer) {
-  const doc = await pdfjsLib.getDocument({
-    data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false,
-  }).promise;
-  let texte = "";
-  try {
-    for (let i = 1; i <= doc.numPages; i++) {
-      const page = await doc.getPage(i);
-      const contenu = await page.getTextContent();
-      texte += contenu.items.map(it => it.str).join(" ") + " ";
-    }
-  } finally {
-    await doc.destroy();
-  }
-  return texte;
-}
-
-async function verifierDocument(cle, buffer, mimetype) {
-  const estImage = mimetype === "image/jpeg" || mimetype === "image/jpg" || mimetype === "image/png";
-  const estPDF = mimetype === "application/pdf" || (!estImage && buffer.length >= 5 && buffer.slice(0, 5).toString() === "%PDF-");
-
-  if (!estImage && !estPDF) {
-    return { statut: "invalide", details: "Le fichier n'est ni un PDF ni une image (JPG/PNG) valide." };
-  }
-
-  let texte = "";
-
-  if (estImage) {
-    // Photo directe (JPG/PNG) : lecture optique immédiate, pas d'étape de texte numérique.
-    try {
-      const texteOCR = await texteParOCRImage(buffer, mimetype);
-      texte = " " + normaliser(texteOCR) + " ";
-    } catch (e) {
-      console.error(">>> [ERREUR OCR IMAGE]", e.message || e);
-    }
-  } else {
-    try {
-      texte = " " + normaliser(await extraireTexte(buffer)) + " ";
-    } catch (e) {
-      return { statut: "invalide", details: "Ce fichier PDF est illisible ou corrompu." };
-    }
-
-    // Pas de texte numérique dans le PDF -> c'est probablement un scan/photo :
-    // on tente une lecture optique (OCR) de l'image avant d'abandonner.
-    if (!texte.trim()) {
-      try {
-        const texteOCR = await texteParOCR(buffer);
-        if (texteOCR && texteOCR.trim()) {
-          texte = " " + normaliser(texteOCR) + " ";
-        }
-      } catch (e) {
-        console.error(">>> [ERREUR OCR]", e.message || e);
-      }
-    }
-  }
-
-  if (!texte.trim()) {
-    return { statut: "a_verifier", details: "Document illisible automatiquement (image de mauvaise qualité) — vérification manuelle par l'gestionnaire." };
-  }
-
-  const scorePropre = (MOTS_CLES[cle] || []).filter(m => texte.includes(m)).length;
-  let meilleurAutre = null, meilleurScore = 0;
-  for (const [autreCle, mots] of Object.entries(MOTS_CLES)) {
-    if (autreCle === cle) continue;
-    const score = mots.filter(m => texte.includes(m)).length;
-    if (score > meilleurScore) { meilleurScore = score; meilleurAutre = autreCle; }
-  }
-
-  if (scorePropre === 0 && meilleurScore >= 1) {
-    const autreLabel = (DOCUMENTS_REQUIS.find(d => d.cle === meilleurAutre) || {}).label || meilleurAutre;
-    return { statut: "suspect", details: `Ce fichier ressemble plutôt à : « ${autreLabel} ». Vérifiez votre dépôt.` };
-  }
-  if (scorePropre >= 1) return { statut: "reconnu", details: null };
-  return { statut: "a_verifier", details: "Contenu non reconnu automatiquement — vérification manuelle par l'gestionnaire." };
-}
-
 // ------------------------------------------------------------
-// Upload PDF uniquement (memes regles que l'application interne)
+// Upload PDF/image (memes regles que l'application interne)
 // ------------------------------------------------------------
 const MIMETYPES_ACCEPTES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 
@@ -191,95 +111,9 @@ function validerNumeroCompte(brut) {
 // Tout demandeur doit déjà être client Afriland (condition pour
 // obtenir un crédit) : on vérifie que l'email fourni lui appartient
 // bien en envoyant un code à usage unique qu'il doit ressaisir.
+// (Logique d'envoi factorisée dans modele/email.js, réutilisée par
+// le parcours entreprise.)
 // ------------------------------------------------------------
-// ------------------------------------------------------------
-// Envoi d'email — deux méthodes possibles, choisies automatiquement
-// selon les variables d'environnement présentes :
-//
-//   1) BREVO (recommandé) : API HTTP, pas de connexion SMTP directe,
-//      donc pas bloquée par Gmail sur les IP des serveurs cloud
-//      (Render, Railway, etc.). Variables : BREVO_API_KEY,
-//      BREVO_SENDER_EMAIL (et BREVO_SENDER_NOM en option).
-//
-//   2) GMAIL SMTP (repli) : nécessite un mot de passe d'application
-//      Gmail. Variables : EMAIL_USER, EMAIL_PASS.
-//
-// Si aucune des deux n'est configurée, on reste en mode test
-// (le code s'affiche uniquement dans les logs).
-// ------------------------------------------------------------
-const BREVO_ACTIF = !!process.env.BREVO_API_KEY && !!process.env.BREVO_SENDER_EMAIL;
-
-const transporteurEmail = (!BREVO_ACTIF && process.env.EMAIL_USER && process.env.EMAIL_PASS)
-  ? nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    })
-  : null;
-
-function genererCodeOTP() {
-  return String(crypto.randomInt(100000, 1000000)); // 6 chiffres
-}
-
-function gabaritEmailCode(prenom, code) {
-  return `
-    <div style="font-family:Arial,sans-serif; max-width:480px; margin:auto;">
-      <h2 style="color:#7C0A1E;">Afriland E-Crédit</h2>
-      <p>Bonjour ${prenom},</p>
-      <p>Voici votre code de vérification pour confirmer votre identité et continuer votre demande de crédit :</p>
-      <p style="font-size:28px; font-weight:bold; letter-spacing:6px; color:#7C0A1E;">${code}</p>
-      <p style="font-size:13px; color:#666;">Ce code est valable 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
-    </div>`;
-}
-
-async function envoyerViaBrevo(destinataire, prenom, code) {
-  const reponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "api-key": process.env.BREVO_API_KEY,
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    },
-    body: JSON.stringify({
-      sender: {
-        email: process.env.BREVO_SENDER_EMAIL,
-        name: process.env.BREVO_SENDER_NOM || "Afriland E-Crédit",
-      },
-      to: [{ email: destinataire, name: prenom || destinataire }],
-      subject: "Votre code de vérification — Afriland E-Crédit",
-      htmlContent: gabaritEmailCode(prenom, code),
-    }),
-  });
-  if (!reponse.ok) {
-    const detail = await reponse.text().catch(() => "");
-    throw new Error(`Brevo a refusé l'envoi (HTTP ${reponse.status}) : ${detail}`);
-  }
-}
-
-async function envoyerCodeParEmail(destinataire, prenom, code) {
-  if (BREVO_ACTIF) {
-    await envoyerViaBrevo(destinataire, prenom, code);
-    return;
-  }
-  if (transporteurEmail) {
-    await transporteurEmail.sendMail({
-      from: `"Afriland E-Crédit" <${process.env.EMAIL_USER}>`,
-      to: destinataire,
-      subject: "Votre code de vérification — Afriland E-Crédit",
-      html: gabaritEmailCode(prenom, code),
-    });
-    return;
-  }
-  // Mode local / demo sans identifiants email configurés : le code est
-  // simplement affiché dans la console pour permettre de tester le parcours.
-  console.log(`>>> [MODE TEST — pas d'email configuré] Code pour ${destinataire} : ${code}`);
-}
-
-function masquerEmail(email) {
-  const [u, d] = (email || "").split("@");
-  if (!u || !d) return email;
-  return u.slice(0, 2) + "***@" + d;
-}
-
 function masquerTelephone(numero) {
   if (!numero) return numero;
   return numero.slice(0, -4).replace(/\d/g, "•") + numero.slice(-4);
@@ -352,11 +186,8 @@ router.get("/", (req, res) => {
   });
 });
 
-// Parcours Entreprise : page d'attente pour l'instant (le formulaire dédié
-// sera ajouté séparément, une fois le circuit Particulier bien validé).
-router.get("/demande-entreprise", (req, res) => {
-  res.render("entreprise_bientot", { titre: "Demande de crédit Entreprise — Afriland E-Crédit" });
-});
+// Parcours Entreprise : voir routes/entreprise.js (page de choix +
+// parcours complet PME/Corporate), monté séparément dans app.js.
 
 // ============================================================
 // SUIVI D'UNE DEMANDE (statut : en cours / acceptée / refusée)
@@ -589,8 +420,8 @@ router.post("/demande/pret", (req, res) => {
     donnees: { ...req.session.demande, ...req.body }, categories: CATEGORIES_FORMULAIRE,
   });
 
-  if (!m || m < 50000 || m > 5000000) {
-    return rendreErreur("Le montant doit être compris entre 50 000 et 5 000 000 FCFA.");
+  if (!m || m <= 0) {
+    return rendreErreur("Merci d'indiquer un montant de crédit valide.");
   }
   if (!duree || !motif || !situation) {
     return rendreErreur("Merci de compléter tous les champs.");
@@ -607,6 +438,7 @@ router.post("/demande/pret", (req, res) => {
   req.session.demande.montant = m;
   req.session.demande.duree = parseInt(duree);
   req.session.demande.motif = motif;
+  req.session.demande.remboursement = calculerRemboursement(m, parseInt(duree));
   req.session.demande.situation = req.body.situation === "__autre__" ? (req.body.situation_autre || "autre").trim() : req.body.situation;
 
   const profilRisque = {
@@ -644,7 +476,7 @@ router.post("/demande/documents/verifier-un", (req, res) => {
     if (!docReq) return res.status(400).json({ statut: "invalide", details: "Pièce inconnue." });
     if (!req.file) return res.status(400).json({ statut: "invalide", details: "Aucun fichier reçu." });
     try {
-      const resultat = await verifierDocument(cle, req.file.buffer, req.file.mimetype);
+      const resultat = await verifierDocument(cle, req.file.buffer, req.file.mimetype, MOTS_CLES, DOCUMENTS_REQUIS);
       res.json(resultat);
     } catch (e) {
       res.status(500).json({ statut: "invalide", details: "Erreur lors de la vérification." });
@@ -657,16 +489,26 @@ router.get("/demande/documents", (req, res) => {
   res.render("etape3", {
     titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS, erreur: null,
     documentsExistants: req.session.demande.documents || {},
+    agents: AGENTS_PARTICULIER, agentSelectionne: req.session.demande.agent_assigne || "",
   });
 });
 
 router.post("/demande/documents", upload.fields(DOCUMENTS_REQUIS.map(d => ({ name: d.cle, maxCount: 1 }))), async (req, res, next) => {
   try {
     const documentsExistants = req.session.demande.documents || {};
+    const rendreErreur = (msg) => res.render("etape3", {
+      titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS, documentsExistants, erreur: msg,
+      agents: AGENTS_PARTICULIER, agentSelectionne: req.body.agent_assigne || "",
+    });
+
+    const agentValide = AGENTS_PARTICULIER.find(a => a.identifiant === req.body.agent_assigne);
+    if (!agentValide) {
+      return rendreErreur("Merci de choisir le gestionnaire qui traitera votre dossier.");
+    }
+
     const manquants = DOCUMENTS_REQUIS.filter(d => (!req.files || !req.files[d.cle]) && !documentsExistants[d.cle]);
     if (manquants.length) {
-      return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-        documentsExistants, erreur: `Pièce(s) manquante(s) : ${manquants.map(d => d.label).join(", ")}` });
+      return rendreErreur(`Pièce(s) manquante(s) : ${manquants.map(d => d.label).join(", ")}`);
     }
 
     // Seuls les nouveaux fichiers réellement envoyés sont (re)vérifiés — les
@@ -675,15 +517,14 @@ router.post("/demande/documents", upload.fields(DOCUMENTS_REQUIS.map(d => ({ nam
     const resultats = {};
     for (const d of DOCUMENTS_REQUIS) {
       if (req.files && req.files[d.cle]) {
-        resultats[d.cle] = await verifierDocument(d.cle, req.files[d.cle][0].buffer, req.files[d.cle][0].mimetype);
+        resultats[d.cle] = await verifierDocument(d.cle, req.files[d.cle][0].buffer, req.files[d.cle][0].mimetype, MOTS_CLES, DOCUMENTS_REQUIS);
       }
     }
     const problemes = DOCUMENTS_REQUIS
       .filter(d => resultats[d.cle] && (resultats[d.cle].statut === "invalide" || resultats[d.cle].statut === "suspect"))
       .map(d => `${d.label} — ${resultats[d.cle].details}`);
     if (problemes.length) {
-      return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
-        documentsExistants, erreur: `Certaines pièces déposées ne correspondent pas à ce qui est attendu :\n${problemes.join(" | ")}` });
+      return rendreErreur(`Certaines pièces déposées ne correspondent pas à ce qui est attendu :\n${problemes.join(" | ")}`);
     }
 
     const dossierClient = path.join(__dirname, "..", "uploads", req.session.demande.cni + "_" + Date.now());
@@ -705,6 +546,7 @@ router.post("/demande/documents", upload.fields(DOCUMENTS_REQUIS.map(d => ({ nam
     });
 
     req.session.demande.documents = documentsEnregistres;
+    req.session.demande.agent_assigne = agentValide.identifiant;
     persisterBrouillon(req);
     res.redirect("/demande/verification-identite");
   } catch (e) {
@@ -717,6 +559,7 @@ router.use((err, req, res, next) => {
   if (err && err.message === "TYPE_FICHIER_NON_AUTORISE") {
     return res.render("etape3", { titre: "Vos documents — Afriland E-Crédit", documents: DOCUMENTS_REQUIS,
       documentsExistants: (req.session.demande && req.session.demande.documents) || {},
+      agents: AGENTS_PARTICULIER, agentSelectionne: (req.session.demande && req.session.demande.agent_assigne) || "",
       erreur: "Seuls les fichiers PDF, JPG ou PNG sont acceptés pour chaque pièce." });
   }
   next(err);
@@ -798,9 +641,12 @@ router.post("/demande/soumettre", (req, res) => {
   }
 
   creerDemande({
-    reference, nom: d.nom, prenom: d.prenom, email: d.email, telephone: d.telephone, cni: d.cni,
+    reference, type: "particulier", nom_affiche: `${d.prenom} ${d.nom}`,
+    nom: d.nom, prenom: d.prenom, email: d.email, telephone: d.telephone, cni: d.cni,
     numero_compte: d.numero_compte, email_verifie: true,
     montant: d.montant, duree: d.duree, motif: d.motif, situation: d.situation,
+    remboursement: d.remboursement || null,
+    agent_assigne: d.agent_assigne || null,
     profil_risque: d.profil_risque || null,
     score_risque_pourcentage: scoreRisque ? scoreRisque.pourcentage : null,
     score_risque_facteurs: scoreRisque ? scoreRisque.facteurs : null,

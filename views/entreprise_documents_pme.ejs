@@ -1,0 +1,46 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <h2>Vos documents</h2>
+    <p class="souscription">
+      Ajoutez les pièces que vous avez sous la main — <strong>rien n'est obligatoire</strong>, vous pouvez
+      envoyer votre dossier même incomplet et compléter plus tard avec votre agent.
+      Donnez un nom à chaque document pour qu'il soit facilement identifiable.
+    </p>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%- erreur.split('\n').join('<br>') %></div><% } %>
+
+    <form method="POST" action="/demande-entreprise/pme/documents" enctype="multipart/form-data">
+      <% for (let i = 1; i <= nbEmplacements; i++) { %>
+        <% const existant = documentsExistants['doc_' + i]; %>
+        <div class="doc-item-libre">
+          <div class="doc-num"><%= i %></div>
+          <div style="flex:1;">
+            <input type="text" name="libelle_<%= i %>" placeholder="Nom du document (ex : Statuts, RCCM...)"
+                   value="<%= existant ? existant.libelle : '' %>" style="width:100%; margin-bottom:8px; padding:9px 12px; border:1px solid var(--line); border-radius:8px;">
+            <input type="file" name="fichier_<%= i %>" accept=".pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png">
+            <% if (existant) { %>
+              <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">
+                <span style="color:#1B5FA8; font-weight:700;">✓ Déjà déposé</span> — <%= existant.nom %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+      <div class="actions">
+        <a href="/demande-entreprise/pme/choix-agent" class="btn secondaire">← Retour</a>
+        <button type="submit" class="btn">Continuer →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .doc-item-libre{display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--line);}
+  .doc-item-libre:last-of-type{border-bottom:none;}
+  .doc-item-libre .doc-num{width:28px; height:28px; border-radius:50%; background:var(--paper); color:var(--red-dark);
+    font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;}
+</style>
+
+<%- include('partials/pied') %>

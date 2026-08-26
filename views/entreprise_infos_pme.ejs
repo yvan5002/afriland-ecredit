@@ -1,0 +1,150 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <a href="/demande-entreprise" class="lien-retour" style="display:inline-block; margin-bottom:16px;">← Changer de catégorie</a>
+    <h2>Votre entreprise (PME)</h2>
+    <p class="souscription">
+      Renseignez ce que vous pouvez dès maintenant — <strong>aucun champ n'est obligatoire</strong> à part
+      votre email, qui nous sert uniquement à vous envoyer un code de vérification. Vous pourrez compléter
+      le reste plus tard avec votre agent.
+    </p>
+
+    <% if (reprise && (donnees.raison_sociale || donnees.email)) { %>
+      <div class="info-reprise">
+        Nous avons retrouvé un dossier commencé précédemment — vos informations ont été pré-remplies.
+        <a href="/demande-entreprise/pme/nouveau">Recommencer à zéro</a> si ce n'est pas le vôtre.
+      </div>
+    <% } %>
+
+    <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
+
+    <form method="POST" action="/demande-entreprise/pme/infos">
+      <div class="champ">
+        <label>Email <span style="color:var(--red-dark);">(obligatoire — pour recevoir votre code de vérification)</span></label>
+        <input type="email" name="email" value="<%= donnees.email || '' %>" required>
+      </div>
+
+      <h3 class="section-titre" style="margin-top:20px;">Identification</h3>
+      <div class="grid2">
+        <div class="champ">
+          <label>Raison sociale</label>
+          <input type="text" name="raison_sociale" value="<%= donnees.raison_sociale || '' %>">
+        </div>
+        <div class="champ">
+          <label>Numéro de dossier</label>
+          <input type="text" name="numero_dossier" value="<%= donnees.numero_dossier || '' %>">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Forme juridique</label>
+          <input type="text" name="forme_juridique" value="<%= donnees.forme_juridique || '' %>">
+        </div>
+        <div class="champ">
+          <label>RCCM</label>
+          <input type="text" name="rccm" value="<%= donnees.rccm || '' %>">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>NIU</label>
+          <input type="text" name="niu" value="<%= donnees.niu || '' %>">
+        </div>
+        <div class="champ">
+          <label>Adresse</label>
+          <input type="text" name="adresse" value="<%= donnees.adresse || '' %>">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Date de création</label>
+          <input type="text" name="date_creation_entreprise" placeholder="jj/mm/aaaa" value="<%= donnees.date_creation_entreprise || '' %>">
+        </div>
+        <div class="champ">
+          <label>Type d'activité</label>
+          <input type="text" name="type_activite" value="<%= donnees.type_activite || '' %>">
+        </div>
+      </div>
+
+      <h3 class="section-titre">Situation financière</h3>
+      <div class="grid2">
+        <div class="champ">
+          <label>Capital</label>
+          <input type="text" name="capital" value="<%= donnees.capital || '' %>">
+        </div>
+        <div class="champ">
+          <label>Chiffre d'affaires</label>
+          <input type="text" name="chiffre_affaires" value="<%= donnees.chiffre_affaires || '' %>">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Total Bilan</label>
+          <input type="text" name="total_bilan" value="<%= donnees.total_bilan || '' %>">
+        </div>
+        <div class="champ">
+          <label>Effectif</label>
+          <input type="text" name="effectif" value="<%= donnees.effectif || '' %>">
+        </div>
+      </div>
+      <div class="champ">
+        <label>Principaux fournisseurs</label>
+        <input type="text" name="principaux_fournisseurs" value="<%= donnees.principaux_fournisseurs || '' %>">
+      </div>
+      <div class="champ">
+        <label>FATCA</label>
+        <input type="text" name="fatca" value="<%= donnees.fatca || '' %>">
+      </div>
+
+      <h3 class="section-titre">Le crédit demandé</h3>
+      <div class="grid2">
+        <div class="champ">
+          <label>Montant du crédit (FCFA)</label>
+          <input type="number" name="montant_credit" min="0" value="<%= donnees.montant_credit || '' %>">
+        </div>
+        <div class="champ">
+          <label>But du crédit</label>
+          <input type="text" name="but_credit" value="<%= donnees.but_credit || '' %>">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="champ">
+          <label>Opération avec le compte</label>
+          <input type="text" name="operation_compte" value="<%= donnees.operation_compte || '' %>">
+        </div>
+        <div class="champ">
+          <label>Origine des fonds</label>
+          <input type="text" name="origine_fonds" value="<%= donnees.origine_fonds || '' %>">
+        </div>
+      </div>
+      <div class="champ">
+        <label>Destination</label>
+        <input type="text" name="destination" value="<%= donnees.destination || '' %>">
+      </div>
+
+      <h3 class="section-titre">Contact</h3>
+      <div class="grid2">
+        <div class="champ">
+          <label>Nom du représentant</label>
+          <input type="text" name="representant_nom" value="<%= donnees.representant_nom || '' %>">
+        </div>
+        <div class="champ">
+          <label>Prénom du représentant</label>
+          <input type="text" name="representant_prenom" value="<%= donnees.representant_prenom || '' %>">
+        </div>
+      </div>
+      <div class="champ">
+        <label>Téléphone</label>
+        <input type="text" name="telephone" placeholder="+237 6XX XXX XXX" value="<%= donnees.telephone || '' %>">
+      </div>
+
+      <div class="actions">
+        <span></span>
+        <button type="submit" class="btn">Recevoir le code de vérification →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

@@ -46,7 +46,7 @@
         <tbody>
           <% stats.parGestionnaire.forEach(a => { %>
             <tr>
-              <td><%= a.gestionnaire_nom %></td>
+              <td><%= a.traite_par_nom %></td>
               <td><%= a.acceptee %></td>
               <td><%= a.refusee %></td>
               <td><%= a.acceptee + a.refusee %></td>
@@ -67,11 +67,12 @@
         <thead>
           <tr>
             <th>Référence</th>
-            <th>Client</th>
+            <th>Demandeur</th>
+            <th>Type</th>
             <th>Montant</th>
             <th>Objet</th>
             <th>Date</th>
-            <th>Gestionnaire</th>
+            <th>Traité par</th>
             <th>Statut</th>
             <th></th>
           </tr>
@@ -80,16 +81,23 @@
           <% demandes.forEach(d => { %>
             <tr>
               <td class="mono"><%= d.reference %></td>
-              <td><%= d.prenom %> <%= d.nom %></td>
+              <td><%= d.nom_affiche %></td>
+              <td>
+                <% if (d.type === 'particulier') { %>Particulier<% } %>
+                <% if (d.type === 'pme') { %>PME<% } %>
+                <% if (d.type === 'corporate') { %>Corporate<% } %>
+              </td>
               <td><%= Number(d.montant).toLocaleString('fr-FR') %> FCFA</td>
               <td><%= d.motif %></td>
               <td><%= new Date(d.date_soumission).toLocaleDateString('fr-FR') %></td>
-              <td><%= d.gestionnaire_nom || '—' %></td>
+              <td><%= d.traite_par_nom || '—' %></td>
               <td>
-                <span class="badge badge-<%= d.statut %>">
+                <span class="badge badge-<%= d.statut === 'recommandee_acceptee' || d.statut === 'recommandee_refusee' ? 'nouvelle' : d.statut %>">
                   <% if (d.statut === 'nouvelle') { %>À traiter<% } %>
                   <% if (d.statut === 'acceptee') { %>Acceptée<% } %>
                   <% if (d.statut === 'refusee') { %>Refusée<% } %>
+                  <% if (d.statut === 'recommandee_acceptee') { %>Recommandée (accept.)<% } %>
+                  <% if (d.statut === 'recommandee_refusee') { %>Recommandée (refus)<% } %>
                 </span>
               </td>
               <td><a href="/directeur/demande/<%= d.id %>" class="lien-voir">Voir →</a></td>

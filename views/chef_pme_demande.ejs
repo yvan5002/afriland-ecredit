@@ -1,0 +1,99 @@
+<%- include('partials/entete') %>
+
+<div class="container" style="max-width:720px;">
+  <a href="/chef-pme/tableau-bord" class="lien-retour">← Retour au tableau de bord</a>
+
+  <div class="card">
+    <h2>Demande <%= demande.reference %></h2>
+    <p class="souscription">
+      Statut actuel :
+      <span class="badge badge-<%= demande.statut === 'recommandee_acceptee' || demande.statut === 'recommandee_refusee' ? 'nouvelle' : demande.statut %>">
+        <% if (demande.statut === 'recommandee_acceptee') { %>Recommandée (acceptation) — à valider<% } %>
+        <% if (demande.statut === 'recommandee_refusee') { %>Recommandée (refus) — à valider<% } %>
+        <% if (demande.statut === 'acceptee') { %>Validé — Accepté<% } %>
+        <% if (demande.statut === 'refusee') { %>Validé — Refusé<% } %>
+      </span>
+    </p>
+
+    <h3 class="section-titre">Entreprise</h3>
+    <div class="recap-ligne"><span>Raison sociale</span><span><%= demande.raison_sociale || '—' %></span></div>
+    <div class="recap-ligne"><span>RCCM</span><span><%= demande.rccm || '—' %></span></div>
+    <div class="recap-ligne"><span>NIU</span><span><%= demande.niu_entreprise || '—' %></span></div>
+    <div class="recap-ligne"><span>Forme juridique</span><span><%= demande.forme_juridique || '—' %></span></div>
+    <div class="recap-ligne"><span>Chiffre d'affaires</span><span><%= demande.chiffre_affaires || '—' %></span></div>
+    <div class="recap-ligne"><span>Total Bilan</span><span><%= demande.total_bilan || '—' %></span></div>
+    <div class="recap-ligne"><span>Représentant</span><span><%= (demande.representant_prenom || demande.representant_nom) ? (demande.representant_prenom + ' ' + demande.representant_nom) : '—' %></span></div>
+    <div class="recap-ligne"><span>Email</span><span><%= demande.email %></span></div>
+    <div class="recap-ligne"><span>Téléphone</span><span><%= demande.telephone || '—' %></span></div>
+
+    <h3 class="section-titre">Demande de crédit</h3>
+    <div class="recap-ligne"><span>Montant</span><span><%= demande.montant ? Number(demande.montant).toLocaleString('fr-FR') + ' FCFA' : '—' %></span></div>
+    <div class="recap-ligne"><span>Objet</span><span><%= demande.motif || '—' %></span></div>
+
+    <% if (demande.score_risque_pourcentage !== null && demande.score_risque_pourcentage !== undefined) { %>
+      <h3 class="section-titre">Évaluation automatique du risque</h3>
+      <% const pct = demande.score_risque_pourcentage; %>
+      <% const niveau = pct >= 60 ? 'ko' : (pct >= 30 ? 'attention' : 'ok'); %>
+      <div class="verif-code-box">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <strong>Risque de défaut estimé</strong>
+          <span class="verif-resultat <%= niveau === 'ko' ? 'ko' : 'ok' %>" style="font-size:18px;"><%= pct %>%</span>
+        </div>
+        <p style="font-size:11.5px; color:var(--ink-soft); margin-top:10px;">Estimation indicative simplifiée — voir le détail complet dans le dossier de l'agent PME.</p>
+      </div>
+    <% } %>
+
+    <h3 class="section-titre">Pièces jointes</h3>
+    <% const clesDocs = Object.keys(demande.documents || {}); %>
+    <% if (!clesDocs.length) { %>
+      <p style="font-size:13px; color:var(--ink-soft);">Aucun document déposé.</p>
+    <% } else { %>
+      <% clesDocs.forEach(cle => { %>
+        <div class="doc-item">
+          <div class="doc-num">📄</div>
+          <div class="doc-label"><%= demande.documents[cle].libelle || demande.documents[cle].nom %></div>
+          <% if (demande.documents[cle].verification === 'reconnu') { %>
+            <span class="badge-verif ok">✓ Reconnu (IA)</span>
+          <% } else { %>
+            <span class="badge-verif attention">⚠ À vérifier</span>
+          <% } %>
+          <a href="/chef-pme/documents/<%= demande.id %>/<%= cle %>" target="_blank" class="lien-voir">Ouvrir →</a>
+        </div>
+      <% }) %>
+    <% } %>
+
+    <h3 class="section-titre">Recommandation de l'agent PME</h3>
+    <div class="verif-code-box">
+      <div class="recap-ligne"><span>Agent</span><span><%= demande.recommandation_agent_nom %></span></div>
+      <div class="recap-ligne"><span>Recommandation</span><span><%= demande.recommandation_decision === 'accepter' ? '✅ Acceptation' : '❌ Refus' %></span></div>
+      <div class="recap-ligne"><span>Date</span><span><%= new Date(demande.recommandation_date).toLocaleString('fr-FR') %></span></div>
+      <div class="recap-ligne"><span>Justification de l'agent</span><span><%= demande.recommandation_commentaire %></span></div>
+    </div>
+
+    <% if (demande.statut === 'recommandee_acceptee' || demande.statut === 'recommandee_refusee') { %>
+      <h3 class="section-titre">Validation définitive</h3>
+      <% if (erreur) { %><div class="erreur"><%= erreur %></div><% } %>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;">
+        Votre décision est <strong>définitive</strong> — c'est elle que le client verra. Vous pouvez suivre la
+        recommandation de l'agent ou en décider autrement, avec votre propre justification.
+      </p>
+      <form method="POST" action="/chef-pme/demande/<%= demande.id %>/valider">
+        <div class="champ">
+          <label>Justification de la décision finale (obligatoire)</label>
+          <textarea name="commentaire" rows="3" placeholder="Ex : confirmation de la recommandation, dossier solide..." required minlength="15"></textarea>
+        </div>
+        <div class="actions">
+          <button type="submit" name="decision" value="refuser" class="btn secondaire">Refuser</button>
+          <button type="submit" name="decision" value="accepter" class="btn">Accepter</button>
+        </div>
+      </form>
+    <% } else { %>
+      <h3 class="section-titre">Décision finale enregistrée</h3>
+      <div class="recap-ligne"><span>Validé par</span><span><%= demande.traite_par_nom %></span></div>
+      <div class="recap-ligne"><span>Date</span><span><%= new Date(demande.date_traitement).toLocaleString('fr-FR') %></span></div>
+      <div class="recap-ligne"><span>Commentaire</span><span><%= demande.commentaire_decision %></span></div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

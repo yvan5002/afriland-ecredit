@@ -14,18 +14,30 @@
       </span>
     </p>
 
-    <h3 class="section-titre">Client</h3>
-    <div class="recap-ligne"><span>Nom complet</span><span><%= demande.prenom %> <%= demande.nom %></span></div>
-    <div class="recap-ligne"><span>Email</span><span><%= demande.email %></span></div>
-    <div class="recap-ligne"><span>Téléphone</span><span><%= demande.telephone %></span></div>
-    <div class="recap-ligne"><span>CNI</span><span><%= demande.cni %></span></div>
-    <div class="recap-ligne"><span>Numéro de compte</span><span><%= demande.numero_compte %></span></div>
+    <% if (demande.type === 'particulier') { %>
+      <h3 class="section-titre">Client</h3>
+      <div class="recap-ligne"><span>Nom complet</span><span><%= demande.prenom %> <%= demande.nom %></span></div>
+      <div class="recap-ligne"><span>Email</span><span><%= demande.email %></span></div>
+      <div class="recap-ligne"><span>Téléphone</span><span><%= demande.telephone %></span></div>
+      <div class="recap-ligne"><span>CNI</span><span><%= demande.cni %></span></div>
+      <div class="recap-ligne"><span>Numéro de compte</span><span><%= demande.numero_compte %></span></div>
+    <% } else { %>
+      <h3 class="section-titre">Entreprise (<%= demande.type === 'pme' ? 'PME' : 'Corporate' %>)</h3>
+      <div class="recap-ligne"><span>Raison sociale</span><span><%= demande.raison_sociale %></span></div>
+      <div class="recap-ligne"><span>RCCM</span><span><%= demande.rccm %></span></div>
+      <div class="recap-ligne"><span>NIU entreprise</span><span><%= demande.niu_entreprise %></span></div>
+      <div class="recap-ligne"><span>Représentant légal</span><span><%= demande.representant_prenom %> <%= demande.representant_nom %></span></div>
+      <div class="recap-ligne"><span>Email</span><span><%= demande.email %></span></div>
+      <div class="recap-ligne"><span>Téléphone</span><span><%= demande.telephone %></span></div>
+    <% } %>
 
     <h3 class="section-titre">Demande de crédit</h3>
     <div class="recap-ligne"><span>Montant</span><span><%= Number(demande.montant).toLocaleString('fr-FR') %> FCFA</span></div>
     <div class="recap-ligne"><span>Durée</span><span><%= demande.duree %> mois</span></div>
     <div class="recap-ligne"><span>Objet</span><span><%= demande.motif %></span></div>
-    <div class="recap-ligne"><span>Situation professionnelle</span><span><%= demande.situation %></span></div>
+    <% if (demande.type === 'particulier') { %>
+      <div class="recap-ligne"><span>Situation professionnelle</span><span><%= demande.situation %></span></div>
+    <% } %>
     <div class="recap-ligne"><span>Date de soumission</span><span><%= new Date(demande.date_soumission).toLocaleString('fr-FR') %></span></div>
 
     <h3 class="section-titre">Évaluation automatique du risque</h3>
@@ -53,9 +65,9 @@
 
     <% if (demande.statut !== 'nouvelle') { %>
       <h3 class="section-titre">Décision enregistrée</h3>
-      <div class="recap-ligne"><span>Traité par</span><span><%= demande.gestionnaire_nom %></span></div>
+      <div class="recap-ligne"><span>Traité par</span><span><%= demande.traite_par_nom %></span></div>
       <div class="recap-ligne"><span>Date</span><span><%= new Date(demande.date_traitement).toLocaleString('fr-FR') %></span></div>
-      <div class="recap-ligne"><span>Commentaire</span><span><%= demande.commentaire_gestionnaire %></span></div>
+      <div class="recap-ligne"><span>Commentaire</span><span><%= demande.commentaire_decision %></span></div>
     <% } else { %>
       <div class="info-reprise" style="margin-top:20px;">En attente de décision par un gestionnaire.</div>
     <% } %>

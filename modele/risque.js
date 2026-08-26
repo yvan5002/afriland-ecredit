@@ -112,3 +112,55 @@ function evaluerRisque(profil) {
 }
 
 module.exports = { evaluerRisque, NOMS_FEATURES, donnees };
+
+// ============================================================
+// SCORE DE RISQUE — PME (heuristique simplifiée)
+// ------------------------------------------------------------
+// Contrairement au modèle "particulier" ci-dessus (portage fidèle
+// d'un modèle scikit-learn réellement entraîné), aucune donnée
+// d'entraînement n'existe pour les dossiers PME : ceci est donc une
+// heuristique indicative simple, basée sur le ratio entre le montant
+// demandé et la surface financière déclarée par l'entreprise
+// (chiffre d'affaires, à défaut total du bilan). À affiner/remplacer
+// dès qu'un vrai modèle PME sera disponible.
+// ============================================================
+function nombreOuNull(v) {
+  const n = parseFloat(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function evaluerRisquePME({ montant, chiffre_affaires, total_bilan, capital }) {
+  const m = nombreOuNull(montant);
+  const surface = nombreOuNull(chiffre_affaires) || nombreOuNull(total_bilan) || nombreOuNull(capital);
+
+  const facteurs = [];
+
+  if (!m || !surface) {
+    // Trop d'informations manquantes pour un ratio fiable — score neutre.
+    facteurs.push({ nom: "Informations financières incomplètes", poids: 0 });
+    return { pourcentage: 50, facteurs };
+  }
+
+  const ratio = m / surface;
+  // Barème indicatif : plus le montant demandé est élevé par rapport à la
+  // surface financière déclarée, plus le risque estimé augmente.
+  let pourcentage;
+  if (ratio <= 0.1) pourcentage = 10;
+  else if (ratio <= 0.25) pourcentage = 20;
+  else if (ratio <= 0.5) pourcentage = 35;
+  else if (ratio <= 1) pourcentage = 55;
+  else if (ratio <= 2) pourcentage = 75;
+  else pourcentage = 90;
+
+  facteurs.push({
+    nom: `Montant demandé / surface financière déclarée (ratio ${ratio.toFixed(2)})`,
+    poids: ratio,
+  });
+  if (!nombreOuNull(chiffre_affaires) && nombreOuNull(total_bilan)) {
+    facteurs.push({ nom: "Chiffre d'affaires non renseigné — estimation basée sur le total du bilan", poids: 0 });
+  }
+
+  return { pourcentage, facteurs };
+}
+
+module.exports.evaluerRisquePME = evaluerRisquePME;

@@ -1,0 +1,40 @@
+<%- include('partials/entete') %>
+
+<div class="container">
+  <div class="card">
+    <h2>Récapitulatif</h2>
+    <p class="souscription">Étape 5 sur 5 — Dossier <strong><%= labelType %></strong>. Vérifiez vos informations avant l'envoi définitif.</p>
+
+    <h3 class="section-titre" style="margin-top:20px;">Entreprise</h3>
+    <div class="recap-ligne"><span>Raison sociale</span><span><%= d.raison_sociale %></span></div>
+    <div class="recap-ligne"><span>RCCM</span><span><%= d.rccm %></span></div>
+    <div class="recap-ligne"><span>NIU entreprise</span><span><%= d.niu_entreprise %></span></div>
+    <div class="recap-ligne"><span>Secteur d'activité</span><span><%= d.secteur_activite || '—' %></span></div>
+    <div class="recap-ligne"><span>Représentant légal</span><span><%= d.representant_prenom %> <%= d.representant_nom %></span></div>
+    <div class="recap-ligne"><span>Email</span><span><%= d.email %></span></div>
+    <div class="recap-ligne"><span>Téléphone</span><span><%= d.telephone %></span></div>
+    <div class="recap-ligne"><span>Identité vérifiée</span><span>✅ Confirmée par email</span></div>
+
+    <h3 class="section-titre">Demande de crédit</h3>
+    <div class="recap-ligne"><span>Montant</span><span><%= Number(d.montant).toLocaleString('fr-FR') %> FCFA</span></div>
+    <div class="recap-ligne"><span>Durée</span><span><%= d.duree %> mois</span></div>
+    <div class="recap-ligne"><span>Objet</span><span><%= d.motif %></span></div>
+
+    <h3 class="section-titre">Documents déposés</h3>
+    <% documents.forEach(doc => { %>
+      <div class="doc-item">
+        <div class="doc-num">✓</div>
+        <div class="doc-label"><%= doc.label %></div>
+      </div>
+    <% }) %>
+
+    <form method="POST" action="/demande-entreprise/<%= type %>/soumettre">
+      <div class="actions" style="margin-top:24px;">
+        <a href="/demande-entreprise/<%= type %>/documents" class="btn secondaire">← Retour</a>
+        <button type="submit" class="btn">Envoyer ma demande</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/pied') %>

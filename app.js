@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 });
 app.use(express.static(path.join(__dirname, "public")));
 // Les documents clients ne sont plus servis publiquement : voir la route
-// sécurisée /gestionnaire/documents/:id/:cle (réservée aux gestionnaires connectés).
+// sécurisée /<espace>/documents/:id/:cle (réservée aux comptes connectés).
 
 app.use(session({
   secret: process.env.SESSION_SECRET || "cle_secrete_afriland_ecredit_2026",
@@ -33,7 +33,11 @@ app.use(session({
 }));
 
 // Routes
-app.use("/gestionnaire", require("./routes/gestionnaire"));
+app.use("/gestionnairegfc", require("./routes/gestionnairegfc"));
+app.use("/pme", require("./routes/pme"));
+app.use("/corporate", require("./routes/corporate"));
+app.use("/chef-pme", require("./routes/chef-pme"));
+app.use("/demande-entreprise", require("./routes/entreprise"));
 // L'espace directeur d'agence n'est lié depuis aucune page publique : on y accède
 // uniquement en connaissant directement l'adresse /directeur/connexion,
 // ou via le formulaire de connexion unique ci-dessous.

@@ -1,12 +1,12 @@
 <%- include('partials/entete') %>
 
-<div class="container" style="max-width:820px;">
+<div class="container" style="max-width:860px;">
   <a href="/directeur/tableau-bord" class="lien-retour">← Retour au tableau de bord</a>
 
   <div class="gestionnaire-entete">
     <div>
-      <h2 style="color:var(--red-dark); margin-bottom:4px;">Gestion des gestionnaires</h2>
-      <p style="color:var(--ink-soft); font-size:13px;">Créez des comptes gestionnaires, ou désactivez l'accès d'un gestionnaire à tout moment.</p>
+      <h2 style="color:var(--red-dark); margin-bottom:4px;">Gestion des comptes</h2>
+      <p style="color:var(--ink-soft); font-size:13px;">Créez des comptes pour les 3 espaces de traitement (gestionnaire GFC, PME, corporate), ou désactivez un accès à tout moment.</p>
     </div>
   </div>
 
@@ -15,9 +15,19 @@
   <% } %>
 
   <div class="card" style="margin-bottom:24px;">
-    <h3 class="section-titre" style="margin-top:0;">Créer un nouvel gestionnaire</h3>
+    <h3 class="section-titre" style="margin-top:0;">Créer un nouveau compte</h3>
     <% if (erreur) { %><div class="erreur"><%= erreur %></div><% } %>
     <form method="POST" action="/directeur/gestionnaires">
+      <div class="champ">
+        <label>Espace concerné</label>
+        <select name="role" required>
+          <option value="">— Sélectionner —</option>
+          <option value="gestionnairegfc">Gestionnaire GFC (particuliers)</option>
+          <option value="pme">PME</option>
+          <option value="corporate">Corporate</option>
+          <option value="chef_pme">Chef des PME</option>
+        </select>
+      </div>
       <div class="grid2">
         <div class="champ">
           <label>Nom complet</label>
@@ -33,7 +43,7 @@
         <input type="password" name="mdp" minlength="6" required>
       </div>
       <div class="actions" style="justify-content:flex-end;">
-        <button type="submit" class="btn">Créer l'gestionnaire</button>
+        <button type="submit" class="btn">Créer le compte</button>
       </div>
     </form>
   </div>
@@ -44,31 +54,33 @@
         <tr>
           <th>Nom</th>
           <th>Identifiant</th>
+          <th>Espace</th>
           <th>Créé le</th>
           <th>Statut</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        <% gestionnaires.forEach(a => { %>
+        <% comptes.forEach(c => { %>
           <tr>
-            <td><%= a.nom %></td>
-            <td class="mono"><%= a.identifiant %></td>
-            <td><%= new Date(a.date_creation).toLocaleDateString('fr-FR') %></td>
+            <td><%= c.nom %></td>
+            <td class="mono"><%= c.identifiant %></td>
+            <td><%= labelRole[c.role] || c.role %></td>
+            <td><%= new Date(c.date_creation).toLocaleDateString('fr-FR') %></td>
             <td>
-              <% if (a.actif) { %>
+              <% if (c.actif) { %>
                 <span class="badge badge-acceptee">Actif</span>
               <% } else { %>
                 <span class="badge badge-refusee">Désactivé</span>
               <% } %>
             </td>
             <td>
-              <% if (a.actif) { %>
-                <form method="POST" action="/directeur/gestionnaires/<%= a.id %>/desactiver" onsubmit="return confirm('Déconnecter et désactiver l\'accès de ' + '<%= a.nom %>' + ' ?');">
+              <% if (c.actif) { %>
+                <form method="POST" action="/directeur/gestionnaires/<%= c.id %>/desactiver" onsubmit="return confirm('Déconnecter et désactiver l\'accès de ' + '<%= c.nom %>' + ' ?');">
                   <button type="submit" class="btn secondaire" style="padding:6px 14px; font-size:12px;">Déconnecter</button>
                 </form>
               <% } else { %>
-                <form method="POST" action="/directeur/gestionnaires/<%= a.id %>/reactiver">
+                <form method="POST" action="/directeur/gestionnaires/<%= c.id %>/reactiver">
                   <button type="submit" class="btn secondaire" style="padding:6px 14px; font-size:12px;">Réactiver</button>
                 </form>
               <% } %>

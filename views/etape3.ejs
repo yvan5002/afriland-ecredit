@@ -29,6 +29,18 @@
           <input type="file" name="<%= doc.cle %>" data-cle="<%= doc.cle %>" accept=".pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png" <%= existant ? '' : 'required' %>>
         </div>
       <% }) %>
+
+      <h3 class="section-titre">Qui va traiter votre dossier ?</h3>
+      <div class="champ">
+        <label>Choisissez votre gestionnaire</label>
+        <select name="agent_assigne" required>
+          <option value="">— Sélectionner —</option>
+          <% agents.forEach(a => { %>
+            <option value="<%= a.identifiant %>" <%= agentSelectionne === a.identifiant ? 'selected' : '' %>><%= a.nom %></option>
+          <% }) %>
+        </select>
+      </div>
+
       <div class="actions">
         <a href="/demande/pret" class="btn secondaire">← Retour</a>
         <button type="submit" class="btn" id="btn-continuer">Continuer →</button>
