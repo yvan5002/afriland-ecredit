@@ -2,12 +2,12 @@
 
 <div class="container" style="max-width:560px;">
   <div class="card">
-    <h2>Choisissez votre agent</h2>
-    <p class="souscription">Votre dossier sera envoyé directement à l'agent PME que vous sélectionnez ci-dessous.</p>
+    <h2 style="color:var(--red-dark);">🏢 <%= banniere %></h2>
+    <p class="souscription">Votre dossier sera envoyé directement à l'agent que vous sélectionnez ci-dessous.</p>
 
     <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
 
-    <form method="POST" action="/demande-entreprise/pme/choix-agent">
+    <form method="POST" action="/demande-entreprise/<%= type %>/choix-agent">
       <div class="grid2" style="gap:12px;">
         <% agents.forEach(a => { %>
           <label class="carte-agent <%= agentSelectionne === a.identifiant ? 'selectionne' : '' %>">
@@ -17,7 +17,7 @@
         <% }) %>
       </div>
       <div class="actions" style="margin-top:20px;">
-        <span></span>
+        <a href="/demande-entreprise/<%= type %>/verification-email" class="btn secondaire">← Retour</a>
         <button type="submit" class="btn">Continuer →</button>
       </div>
     </form>

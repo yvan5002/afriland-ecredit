@@ -44,3 +44,30 @@ function calculerRemboursement(montant, dureeMois) {
 }
 
 module.exports = { calculerRemboursement };
+
+// ------------------------------------------------------------
+// Cohérence montant / durée — un montant élevé sur une durée trop
+// courte donne une mensualité déraisonnable. Plafond indicatif
+// (ajustable) : au-delà, on demande au client d'allonger la durée
+// plutôt que d'accepter une mensualité intenable.
+// ------------------------------------------------------------
+const PLAFOND_MENSUALITE_INDICATIF = 2_000_000; // FCFA / mois
+
+function validerAdequationDureeMontant(montant, dureeMois) {
+  const resultat = calculerRemboursement(montant, dureeMois);
+  if (resultat.mensualite <= PLAFOND_MENSUALITE_INDICATIF) {
+    return { valide: true, ...resultat };
+  }
+
+  // Cherche la plus petite durée qui ramènerait la mensualité sous le plafond.
+  let dureeConseillee = Math.max(1, parseInt(dureeMois) || 1);
+  while (dureeConseillee < 360) {
+    dureeConseillee++;
+    if (calculerRemboursement(montant, dureeConseillee).mensualite <= PLAFOND_MENSUALITE_INDICATIF) break;
+  }
+
+  return { valide: false, dureeMinimaleConseillee: dureeConseillee, ...resultat };
+}
+
+module.exports.PLAFOND_MENSUALITE_INDICATIF = PLAFOND_MENSUALITE_INDICATIF;
+module.exports.validerAdequationDureeMontant = validerAdequationDureeMontant;

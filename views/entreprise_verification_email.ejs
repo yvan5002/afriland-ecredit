@@ -2,8 +2,9 @@
 
 <div class="container" style="max-width:460px;">
   <div class="card">
+    <a href="/" class="lien-retour" style="display:inline-block; margin-bottom:16px;">← Retour à l'accueil</a>
     <h2>Vérification</h2>
-    <p class="souscription">Étape 2 sur 5 — Un code à 6 chiffres a été envoyé à <strong><%= emailMasque %></strong>.</p>
+    <p class="souscription">Un code à 6 chiffres a été envoyé à <strong><%= emailMasque %></strong>.</p>
 
     <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
 

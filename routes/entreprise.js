@@ -1,25 +1,27 @@
 // ============================================================
-// Parcours de demande de crédit — ENTREPRISES (PME et Corporate)
+// Parcours de demande de crédit — ENTREPRISES
 //
-// CORPORATE : parcours inchangé — infos -> vérification email ->
-// détails du prêt -> documents (liste fixe) -> récapitulatif -> envoi.
+// Un SEUL formulaire de départ (plus de choix "PME ou Corporate"
+// demandé au client) : selon le chiffre d'affaires renseigné, le
+// dossier est automatiquement routé —
 //
-// PME : parcours spécifique, revu en profondeur —
-//   infos (champs du formulaire papier PME, RIEN d'obligatoire à part
-//   l'email, nécessaire pour recevoir le code de vérification)
-//   -> vérification email
-//   -> choix d'un agent PME nommé (le dossier lui sera assigné)
-//   -> documents (8 emplacements libres, SANS intitulé imposé : le
-//      client tape lui-même le nom de chaque pièce ; rien n'est
-//      obligatoire, un dossier incomplet peut être envoyé)
+//   chiffre d'affaires > 2 milliards FCFA -> CORPORATE
+//   chiffre d'affaires <= 2 milliards FCFA (ou non renseigné) -> PME
+//
+// Déroulé ensuite commun aux deux, seuls la liste de documents et le
+// vivier d'agents diffèrent :
+//   infos (rien d'obligatoire à part l'email)
+//   -> vérification email (OTP)
+//   -> choix d'un agent nommé ("Bienvenue chez les PME" / "...Corporates")
+//   -> documents (PME : 8 emplacements libres, rien d'obligatoire —
+//      Corporate : liste fixe de 16 pièces réglementaires/KYC/business)
 //   -> récapitulatif + génération du code de suivi
-//   -> envoi (calcul d'un score de risque indicatif, comme pour les
-//      particuliers, visible par l'agent puis par le chef des PME)
+//   -> envoi (score de risque indicatif pour la PME, comme pour les
+//      particuliers)
 //
-// Ensuite : l'agent PME choisi ne fait que RECOMMANDER une décision
+// PME uniquement : l'agent choisi ne fait que RECOMMANDER une décision
 // (voir deuxEtapes dans routes/espace-fabrique.js) ; c'est le chef des
-// PME (voir routes/chef-pme.js) qui valide définitivement — le client
-// ne voit "accepté"/"refusé" qu'à ce moment-là.
+// PME (routes/chef-pme.js) qui valide définitivement.
 // ============================================================
 const express = require("express");
 const router = express.Router();
@@ -32,15 +34,18 @@ const { verifierDocument, normaliser } = require("../modele/verification");
 const { genererCodeOTP, envoyerCodeParEmail, masquerEmail } = require("../modele/email");
 const { evaluerRisquePME } = require("../modele/risque");
 const {
-  creerDemande, trouverParReference,
+  creerDemande,
   sauvegarderBrouillon, trouverBrouillon, supprimerBrouillon,
 } = require("../db/database");
 
 const TYPES_VALIDES = ["pme", "corporate"];
 const LABEL_TYPE = { pme: "PME", corporate: "Corporate (grande entreprise)" };
+const BANNIERE_TYPE = { pme: "Bienvenue chez les PME", corporate: "Bienvenue chez les Corporates" };
 
-// Agents PME nommés — comptes créés automatiquement (voir db/database.js)
-// avec des mots de passe simples fournis à l'agence.
+// Seuil de routage automatique — à ajuster librement.
+const SEUIL_CHIFFRE_AFFAIRES_CORPORATE = 2_000_000_000; // 2 milliards FCFA
+
+// Agents PME nommés — comptes créés automatiquement (voir db/database.js).
 const AGENTS_PME = [
   { identifiant: "eyoum", nom: "Mme Eyoum" },
   { identifiant: "dim", nom: "Mr Dim" },
@@ -52,31 +57,60 @@ const AGENTS_PME = [
   { identifiant: "noudjeu", nom: "Mme Noudjeu" },
 ];
 
+// Agents Corporate — un seul compte pour l'instant (aucun nom fourni par
+// l'agence à ce stade). Ajouter des entrées ici suffira à en proposer
+// davantage au client, exactement comme pour les agents PME ci-dessus.
+const AGENTS_CORPORATE = [
+  { identifiant: "corporate", nom: "Service Corporate" },
+];
+
+function agentsPour(type) { return type === "pme" ? AGENTS_PME : AGENTS_CORPORATE; }
+
 // Nombre d'emplacements de documents libres proposés au client PME.
 const NB_DOCUMENTS_LIBRES_PME = 8;
 
 // ------------------------------------------------------------
-// CORPORATE — liste de pièces fixe (inchangée)
+// CORPORATE — liste réelle transmise par l'agence (KYC + réglementaire + business).
 // ------------------------------------------------------------
 const DOCUMENTS_CORPORATE = [
-  { cle: "statuts", numero: 1, label: "Statuts de la société" },
-  { cle: "rccm", numero: 2, label: "Registre du Commerce (RCCM)" },
-  { cle: "etats_financiers_certifies", numero: 3, label: "États financiers certifiés (bilan, compte de résultat)" },
-  { cle: "attestation_fiscale", numero: 4, label: "Attestation de non-redevance fiscale" },
-  { cle: "pv_organe", numero: 5, label: "Procès-verbal de l'organe habilité autorisant l'emprunt" },
-  { cle: "piece_representant", numero: 6, label: "Pièce d'identité du représentant légal" },
+  { cle: "pv_ag_3ans", numero: 1, label: "PV d'assemblée générale sur les 3 dernières années" },
+  { cle: "pv_ag_dirigeant", numero: 2, label: "PV d'assemblée générale désignant le dirigeant" },
+  { cle: "rapports_commissaires", numero: 3, label: "Rapports des commissaires aux comptes sur les 3 dernières années" },
+  { cle: "cv_personnel_cle", numero: 4, label: "CV du personnel clé de la structure" },
+  { cle: "attestations_engagement", numero: 5, label: "Attestations d'engagement et de non-engagement chez les confrères" },
+  { cle: "demande_signee", numero: 6, label: "Demande signée par la personne habilitée par les statuts" },
+  { cle: "autorisation_exploitation", numero: 7, label: "Autorisation d'exploitation d'un établissement de 1ère classe" },
+  { cle: "autorisation_prelevement_eaux", numero: 8, label: "Autorisation de prélèvement des eaux à des fins industrielles" },
+  { cle: "autorisation_deversement_eaux", numero: 9, label: "Autorisation de déversement des eaux usées de l'usine" },
+  { cle: "attestation_environnementale", numero: 10, label: "Attestation de respect des obligations environnementales" },
+  { cle: "certificat_conformite_env", numero: 11, label: "Certificat de conformité environnementale" },
+  { cle: "balance_agee_creances", numero: 12, label: "Balance âgée des créances clients" },
+  { cle: "balance_agee_dettes", numero: 13, label: "Balance âgée des dettes fournisseurs" },
+  { cle: "etat_stocks", numero: 14, label: "État des stocks" },
+  { cle: "dsf_3ans", numero: 15, label: "DSF (Déclarations Statistiques et Fiscales) — 3 derniers exercices" },
+  { cle: "previsionnel_24mois", numero: 16, label: "Données prévisionnelles d'activité sur 24 mois" },
 ];
 const MOTS_CLES_CORPORATE = {
-  statuts: ["statuts", "objet social", "capital social"],
-  rccm: ["registre du commerce", "rccm", "immatriculation"],
-  etats_financiers_certifies: ["bilan", "compte de resultat", "certifie", "commissaire aux comptes"],
-  attestation_fiscale: ["non redevance", "attestation fiscale", "impots"],
-  pv_organe: ["proces verbal", "conseil d'administration", "assemblee", "autorise"],
-  piece_representant: ["carte nationale", "identite", "representant legal", "date de naissance"],
+  pv_ag_3ans: ["proces verbal", "assemblee generale", "exercice"],
+  pv_ag_dirigeant: ["proces verbal", "assemblee generale", "dirigeant", "nomination"],
+  rapports_commissaires: ["commissaire aux comptes", "rapport", "certification"],
+  cv_personnel_cle: ["curriculum vitae", "cv", "experience", "formation"],
+  attestations_engagement: ["attestation", "engagement", "confreres", "banque"],
+  demande_signee: ["demande de credit", "financement", "statuts", "habilite"],
+  autorisation_exploitation: ["autorisation", "exploitation", "etablissement", "1ere classe", "premiere classe"],
+  autorisation_prelevement_eaux: ["autorisation", "prelevement", "eaux", "industrielle"],
+  autorisation_deversement_eaux: ["autorisation", "deversement", "eaux usees", "usine"],
+  attestation_environnementale: ["attestation", "environnement", "obligations"],
+  certificat_conformite_env: ["certificat", "conformite", "environnementale"],
+  balance_agee_creances: ["balance agee", "creances", "clients"],
+  balance_agee_dettes: ["balance agee", "dettes", "fournisseurs"],
+  etat_stocks: ["etat des stocks", "stock", "inventaire"],
+  dsf_3ans: ["dsf", "declaration statistique", "fiscale", "exercice"],
+  previsionnel_24mois: ["previsionnel", "prevision", "24 mois", "activite"],
 };
 
 // ------------------------------------------------------------
-// Upload PDF/image — mêmes règles que le parcours particulier
+// Upload PDF/image
 // ------------------------------------------------------------
 const MIMETYPES_ACCEPTES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
 const upload = multer({
@@ -98,70 +132,52 @@ function genererReference(type) {
 function genererIdBrouillon() { return crypto.randomBytes(12).toString("hex"); }
 
 function validerTelephoneSouple(brut) {
-  // Souple par rapport au parcours particulier : rien n'est obligatoire
-  // côté PME, donc on accepte un champ vide, mais on garde un contrôle de
-  // format basique si quelque chose a été saisi.
   if (!brut) return "";
   const chiffres = brut.replace(/\D/g, "");
   const local = chiffres.startsWith("237") ? chiffres.slice(3) : chiffres;
   return /^6\d{8}$/.test(local) ? "+237 " + local : brut.trim();
 }
 
-function validerTelephone(brut) {
-  const chiffres = (brut || "").replace(/\D/g, "");
-  const local = chiffres.startsWith("237") ? chiffres.slice(3) : chiffres;
-  return /^6\d{8}$/.test(local) ? "+237 " + local : null;
+function nombreDepuis(brut) {
+  const n = parseFloat((brut || "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : null;
 }
 
-function validerRCCM(brut) {
-  const v = (brut || "").trim().toUpperCase();
-  return v.length >= 6 ? v : null;
+// Détermine PME/Corporate à partir du chiffre d'affaires déclaré.
+function determinerType(chiffreAffairesBrut) {
+  const ca = nombreDepuis(chiffreAffairesBrut);
+  return ca !== null && ca > SEUIL_CHIFFRE_AFFAIRES_CORPORATE ? "corporate" : "pme";
 }
 
-function validerNIU(brut) {
-  const v = (brut || "").trim().toUpperCase();
-  return v.length >= 6 ? v : null;
-}
-
-function etapeSuivante(type, d) {
+function etapeSuivante(d) {
+  if (!d || !d.email) return "/demande-entreprise";
+  const type = d.type;
+  if (!type) return "/demande-entreprise";
   const base = `/demande-entreprise/${type}`;
-  if (type === "pme") {
-    if (!d || !d.email) return base;
-    if (!d.email_verifie) return `${base}/verification-email`;
-    if (!d.agent_assigne) return `${base}/choix-agent`;
-    if (!d.documents_soumis) return `${base}/documents`;
-    return `${base}/recapitulatif`;
-  }
-  if (!d || !d.raison_sociale) return base;
   if (!d.email_verifie) return `${base}/verification-email`;
-  if (!d.montant) return `${base}/pret`;
-  if (!d.documents) return `${base}/documents`;
+  if (!d.agent_assigne) return `${base}/choix-agent`;
+  if (!d.documents_soumis) return `${base}/documents`;
   return `${base}/recapitulatif`;
 }
 
 // ------------------------------------------------------------
-// Brouillon persistant — même principe que le parcours particulier,
-// mais avec ses propres clés de session/cookie pour ne jamais entrer
-// en conflit avec une demande "particulier" en cours dans le même
-// navigateur.
+// Brouillon persistant — UNE SEULE clé de session/cookie pour tout le
+// parcours entreprise (le type n'est connu qu'après la première étape,
+// donc il ne peut pas faire partie du nom du cookie comme avant).
 // ------------------------------------------------------------
 function chargerOuCreerBrouillon(req, res, next) {
-  const type = req.params.type;
-  const cleIdentite = type === "pme" ? "email" : "raison_sociale";
-  if (req.session.demandeEntreprise && req.session.demandeEntreprise[cleIdentite]
-      && req.session.demandeEntreprise.type === type) return next();
+  if (req.session.demandeEntreprise && req.session.demandeEntreprise.email) return next();
 
-  const nomCookie = `brouillon_entreprise_${type}_id`;
-  const idCookie = (req.cookies || {})[nomCookie];
+  const idCookie = (req.cookies || {}).brouillon_entreprise_id;
   const brouillon = trouverBrouillon(idCookie);
 
-  if (brouillon && !brouillon.termine && brouillon.donnees && brouillon.donnees.type === type) {
+  if (brouillon && !brouillon.termine && brouillon.donnees && brouillon.donnees.email) {
     const donnees = { ...brouillon.donnees };
     if (donnees.documents) {
       const dossierUploads = path.join(__dirname, "..", "uploads");
       const tousPresents = Object.values(donnees.documents)
         .every(doc => fs.existsSync(path.join(dossierUploads, doc.chemin)));
-      if (!tousPresents) delete donnees.documents;
+      if (!tousPresents) { delete donnees.documents; delete donnees.documents_soumis; }
     }
     req.session.demandeEntreprise = donnees;
     req.session.brouillonEntrepriseId = idCookie;
@@ -170,9 +186,9 @@ function chargerOuCreerBrouillon(req, res, next) {
   }
 
   const nouvelId = genererIdBrouillon();
-  req.session.demandeEntreprise = { type };
+  req.session.demandeEntreprise = {};
   req.session.brouillonEntrepriseId = nouvelId;
-  res.cookie(nomCookie, nouvelId, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: "lax" });
+  res.cookie("brouillon_entreprise_id", nouvelId, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: "lax" });
   next();
 }
 
@@ -182,99 +198,55 @@ function persisterBrouillon(req) {
   }
 }
 
+router.use(chargerOuCreerBrouillon);
+
 router.param("type", (req, res, next, type) => {
   if (!TYPES_VALIDES.includes(type)) return res.redirect("/demande-entreprise");
   next();
 });
 
-// Page de choix — mount root ("/demande-entreprise")
-router.get("/", (req, res) => {
-  res.render("entreprise_choix", { titre: "Demande de crédit Entreprise — Afriland E-Crédit" });
-});
-
-router.use("/:type", chargerOuCreerBrouillon);
+// S'assure qu'on n'accède pas à une étape "pme" alors que le dossier en
+// session a été déterminé "corporate" (ou l'inverse).
+function exigerBonType(req, res, next) {
+  const d = req.session.demandeEntreprise;
+  if (d && d.type && d.type !== req.params.type) return res.redirect(etapeSuivante(d));
+  next();
+}
 
 // ============================================================
-// ÉTAPE 1 — INFORMATIONS SUR L'ENTREPRISE
+// ÉTAPE 1 — FORMULAIRE UNIQUE (le type se détermine après coup)
 // ============================================================
-router.get("/:type", (req, res) => {
-  const type = req.params.type;
-  const reprise = !!req.session.repriseEntreprise;
-  req.session.repriseEntreprise = false;
-  res.render(type === "pme" ? "entreprise_infos_pme" : "entreprise_infos", {
-    titre: `Votre entreprise — Afriland E-Crédit`,
-    type, labelType: LABEL_TYPE[type],
-    erreur: null, donnees: req.session.demandeEntreprise || { type }, reprise,
-  });
-});
-
-router.get("/:type/nouveau", (req, res) => {
-  const type = req.params.type;
-  if (req.session.brouillonEntrepriseId) supprimerBrouillon(req.session.brouillonEntrepriseId);
-  res.clearCookie(`brouillon_entreprise_${type}_id`);
-  req.session.demandeEntreprise = { type };
-  delete req.session.brouillonEntrepriseId;
-  res.redirect(`/demande-entreprise/${type}`);
-});
-
-// ---- PME : formulaire libre, rien d'obligatoire sauf l'email ----
-const CHAMPS_TEXTE_PME = [
+const CHAMPS_TEXTE_ENTREPRISE = [
   "raison_sociale", "numero_dossier", "forme_juridique", "rccm", "niu", "adresse",
   "capital", "chiffre_affaires", "effectif", "type_activite", "principaux_fournisseurs",
   "but_credit", "operation_compte", "origine_fonds", "destination", "montant_credit",
   "date_creation_entreprise", "total_bilan", "fatca", "representant_nom", "representant_prenom",
 ];
 
-router.post("/:type/infos", async (req, res, next) => {
-  const type = req.params.type;
-  if (type === "pme") return traiterInfosPME(req, res);
-
-  // ---- CORPORATE : parcours inchangé ----
-  const { raison_sociale, rccm, niu_entreprise, secteur_activite, representant_nom, representant_prenom, email, telephone } = req.body;
-  const telValide = validerTelephone(telephone);
-  const rccmValide = validerRCCM(rccm);
-  const niuValide = validerNIU(niu_entreprise);
-  const rendreErreur = (msg) => res.render("entreprise_infos", {
-    titre: `Votre entreprise — Afriland E-Crédit`,
-    type, labelType: LABEL_TYPE[type],
-    erreur: msg, donnees: { ...req.body, type }, reprise: false,
+router.get("/", (req, res) => {
+  const reprise = !!req.session.repriseEntreprise;
+  req.session.repriseEntreprise = false;
+  const d = req.session.demandeEntreprise;
+  if (d && d.email) return res.redirect(etapeSuivante(d));
+  res.render("entreprise_infos_pme", {
+    titre: "Votre entreprise — Afriland E-Crédit",
+    erreur: null, donnees: d || {}, reprise,
   });
-
-  if (!raison_sociale || !representant_nom || !representant_prenom || !email) {
-    return rendreErreur("Merci de compléter la raison sociale et l'identité du représentant légal.");
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return rendreErreur("Adresse email invalide.");
-  if (!telValide) return rendreErreur("Numéro de téléphone invalide (format camerounais requis : 9 chiffres commençant par 6).");
-  if (!rccmValide) return rendreErreur("Numéro RCCM invalide.");
-  if (!niuValide) return rendreErreur("Numéro NIU (entreprise) invalide.");
-
-  const code = genererCodeOTP();
-  req.session.demandeEntreprise = {
-    type, raison_sociale, rccm: rccmValide, niu_entreprise: niuValide, secteur_activite,
-    representant_nom, representant_prenom, email, telephone: telValide,
-    email_verifie: false,
-    otp_hash: bcrypt.hashSync(code, 10),
-    otp_expire: Date.now() + 10 * 60 * 1000,
-    otp_tentatives: 0,
-  };
-  persisterBrouillon(req);
-
-  try {
-    await envoyerCodeParEmail(email, representant_prenom, code);
-  } catch (e) {
-    return rendreErreur("Impossible d'envoyer l'email de vérification pour le moment. Réessayez dans quelques instants.");
-  }
-
-  res.redirect(`/demande-entreprise/${type}/verification-email`);
 });
 
-async function traiterInfosPME(req, res) {
-  const type = "pme";
+router.get("/nouveau", (req, res) => {
+  if (req.session.brouillonEntrepriseId) supprimerBrouillon(req.session.brouillonEntrepriseId);
+  res.clearCookie("brouillon_entreprise_id");
+  req.session.demandeEntreprise = {};
+  delete req.session.brouillonEntrepriseId;
+  res.redirect("/demande-entreprise");
+});
+
+router.post("/infos", async (req, res) => {
   const email = (req.body.email || "").trim();
   const rendreErreur = (msg) => res.render("entreprise_infos_pme", {
     titre: "Votre entreprise — Afriland E-Crédit",
-    type, labelType: LABEL_TYPE[type],
-    erreur: msg, donnees: { ...req.body, type }, reprise: false,
+    erreur: msg, donnees: { ...req.body }, reprise: false,
   });
 
   // Seul l'email est indispensable : c'est le seul moyen d'envoyer le code
@@ -284,8 +256,10 @@ async function traiterInfosPME(req, res) {
     return rendreErreur("Une adresse email valide est nécessaire pour recevoir votre code de vérification.");
   }
 
+  const type = determinerType(req.body.chiffre_affaires);
+
   const donnees = { type, email };
-  CHAMPS_TEXTE_PME.forEach(champ => { donnees[champ] = (req.body[champ] || "").trim(); });
+  CHAMPS_TEXTE_ENTREPRISE.forEach(champ => { donnees[champ] = (req.body[champ] || "").trim(); });
   donnees.telephone = validerTelephoneSouple(req.body.telephone);
 
   const code = genererCodeOTP();
@@ -303,27 +277,27 @@ async function traiterInfosPME(req, res) {
   }
 
   res.redirect(`/demande-entreprise/${type}/verification-email`);
-}
+});
 
 // ============================================================
 // ÉTAPE 2 — VÉRIFICATION EMAIL (OTP) — commune aux deux types
 // ============================================================
-router.get("/:type/verification-email", (req, res) => {
+router.get("/:type/verification-email", exigerBonType, (req, res) => {
   const type = req.params.type;
   const d = req.session.demandeEntreprise;
-  if (!d || !d.email) return res.redirect(`/demande-entreprise/${type}`);
-  if (d.email_verifie) return res.redirect(etapeSuivante(type, d));
+  if (!d || !d.email) return res.redirect("/demande-entreprise");
+  if (d.email_verifie) return res.redirect(etapeSuivante(d));
   res.render("entreprise_verification_email", {
     titre: "Vérification — Afriland E-Crédit",
     type, labelType: LABEL_TYPE[type], erreur: null, emailMasque: masquerEmail(d.email),
   });
 });
 
-router.post("/:type/verification-email", (req, res) => {
+router.post("/:type/verification-email", exigerBonType, (req, res) => {
   const type = req.params.type;
   const d = req.session.demandeEntreprise;
-  if (!d || !d.email) return res.redirect(`/demande-entreprise/${type}`);
-  if (d.email_verifie) return res.redirect(etapeSuivante(type, d));
+  if (!d || !d.email) return res.redirect("/demande-entreprise");
+  if (d.email_verifie) return res.redirect(etapeSuivante(d));
 
   const rendreErreur = (msg) => res.render("entreprise_verification_email", {
     titre: "Vérification — Afriland E-Crédit",
@@ -343,13 +317,13 @@ router.post("/:type/verification-email", (req, res) => {
   d.email_verifie = true;
   delete d.otp_hash; delete d.otp_expire; delete d.otp_tentatives;
   persisterBrouillon(req);
-  res.redirect(etapeSuivante(type, d));
+  res.redirect(etapeSuivante(d));
 });
 
-router.get("/:type/verification-email/renvoyer", async (req, res) => {
+router.get("/:type/verification-email/renvoyer", exigerBonType, async (req, res) => {
   const type = req.params.type;
   const d = req.session.demandeEntreprise;
-  if (!d || !d.email) return res.redirect(`/demande-entreprise/${type}`);
+  if (!d || !d.email) return res.redirect("/demande-entreprise");
   const code = genererCodeOTP();
   d.otp_hash = bcrypt.hashSync(code, 10);
   d.otp_expire = Date.now() + 10 * 60 * 1000;
@@ -360,84 +334,60 @@ router.get("/:type/verification-email/renvoyer", async (req, res) => {
 });
 
 // ============================================================
-// PME UNIQUEMENT — CHOIX DE L'AGENT
+// ÉTAPE 3 — CHOIX DE L'AGENT (liste + bannière selon le type)
 // ============================================================
-router.get("/pme/choix-agent", (req, res) => {
+router.get("/:type/choix-agent", exigerBonType, (req, res) => {
+  const type = req.params.type;
   const d = req.session.demandeEntreprise;
-  if (!d || !d.email_verifie) return res.redirect(etapeSuivante("pme", d));
+  if (!d || !d.email_verifie) return res.redirect(etapeSuivante(d));
   res.render("entreprise_choix_agent", {
     titre: "Choisissez votre agent — Afriland E-Crédit",
-    agents: AGENTS_PME, agentSelectionne: d.agent_assigne || "", erreur: null,
+    type, banniere: BANNIERE_TYPE[type],
+    agents: agentsPour(type), agentSelectionne: d.agent_assigne || "", erreur: null,
   });
 });
 
-router.post("/pme/choix-agent", (req, res) => {
+router.post("/:type/choix-agent", exigerBonType, (req, res) => {
+  const type = req.params.type;
   const d = req.session.demandeEntreprise;
-  if (!d || !d.email_verifie) return res.redirect(etapeSuivante("pme", d));
+  if (!d || !d.email_verifie) return res.redirect(etapeSuivante(d));
 
-  const agentValide = AGENTS_PME.find(a => a.identifiant === req.body.agent_assigne);
+  const agentValide = agentsPour(type).find(a => a.identifiant === req.body.agent_assigne);
   if (!agentValide) {
     return res.render("entreprise_choix_agent", {
       titre: "Choisissez votre agent — Afriland E-Crédit",
-      agents: AGENTS_PME, agentSelectionne: "", erreur: "Merci de choisir un agent dans la liste.",
+      type, banniere: BANNIERE_TYPE[type], agents: agentsPour(type), agentSelectionne: "",
+      erreur: "Merci de choisir un agent dans la liste.",
     });
   }
 
   d.agent_assigne = agentValide.identifiant;
   d.agent_assigne_nom = agentValide.nom;
   persisterBrouillon(req);
-  res.redirect("/demande-entreprise/pme/documents");
-});
-
-// ============================================================
-// ÉTAPE 3 (CORPORATE UNIQUEMENT) — DÉTAILS DU PRÊT
-// ============================================================
-router.get("/corporate/pret", (req, res) => {
-  const d = req.session.demandeEntreprise;
-  if (!d || !d.email_verifie) return res.redirect(etapeSuivante("corporate", d));
-  res.render("entreprise_pret", { titre: "Votre demande — Afriland E-Crédit", type: "corporate", labelType: LABEL_TYPE.corporate, erreur: null, donnees: d });
-});
-
-router.post("/corporate/pret", (req, res) => {
-  const { montant, duree, motif } = req.body;
-  const m = parseFloat(montant);
-  const rendreErreur = (msg) => res.render("entreprise_pret", {
-    titre: "Votre demande — Afriland E-Crédit", type: "corporate", labelType: LABEL_TYPE.corporate,
-    erreur: msg, donnees: { ...req.session.demandeEntreprise, montant, duree, motif },
-  });
-  if (!m || m < 500000) return rendreErreur("Le montant doit être d'au moins 500 000 FCFA pour un crédit entreprise.");
-  if (!duree || !motif) return rendreErreur("Merci de compléter tous les champs.");
-
-  req.session.demandeEntreprise.montant = m;
-  req.session.demandeEntreprise.duree = parseInt(duree);
-  req.session.demandeEntreprise.motif = motif;
-  persisterBrouillon(req);
-  res.redirect("/demande-entreprise/corporate/documents");
+  res.redirect(`/demande-entreprise/${type}/documents`);
 });
 
 // ============================================================
 // ÉTAPE 4 — DOCUMENTS
 // ============================================================
-router.get("/:type/documents", (req, res) => {
+router.get("/:type/documents", exigerBonType, (req, res) => {
   const type = req.params.type;
   const d = req.session.demandeEntreprise;
+  if (!d || !d.agent_assigne) return res.redirect(etapeSuivante(d));
 
   if (type === "pme") {
-    if (!d || !d.agent_assigne) return res.redirect(etapeSuivante(type, d));
     return res.render("entreprise_documents_pme", {
       titre: "Vos documents — Afriland E-Crédit", nbEmplacements: NB_DOCUMENTS_LIBRES_PME,
       documentsExistants: d.documents || {}, erreur: null,
     });
   }
-
-  if (!d || !d.montant) return res.redirect(etapeSuivante(type, d));
   res.render("entreprise_documents", {
     titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type],
     documents: DOCUMENTS_CORPORATE, erreur: null,
   });
 });
 
-router.post("/:type/documents", (req, res, next) => {
+router.post("/:type/documents", exigerBonType, (req, res, next) => {
   const type = req.params.type;
 
   if (type === "pme") {
@@ -453,21 +403,22 @@ router.post("/:type/documents", (req, res, next) => {
     if (err) return next(err);
     try {
       const liste = DOCUMENTS_CORPORATE;
-      const manquants = liste.filter(d => !req.files || !req.files[d.cle]);
+      const d = req.session.demandeEntreprise;
+      const manquants = liste.filter(doc => !req.files || !req.files[doc.cle]);
       if (manquants.length) {
         return res.render("entreprise_documents", {
           titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type], documents: liste,
-          erreur: `Pièce(s) manquante(s) : ${manquants.map(d => d.label).join(", ")}`,
+          erreur: `Pièce(s) manquante(s) : ${manquants.map(doc => doc.label).join(", ")}`,
         });
       }
 
       const resultats = {};
-      for (const d of liste) {
-        resultats[d.cle] = await verifierDocument(d.cle, req.files[d.cle][0].buffer, req.files[d.cle][0].mimetype, MOTS_CLES_CORPORATE, liste);
+      for (const doc of liste) {
+        resultats[doc.cle] = await verifierDocument(doc.cle, req.files[doc.cle][0].buffer, req.files[doc.cle][0].mimetype, MOTS_CLES_CORPORATE, liste);
       }
       const problemes = liste
-        .filter(d => resultats[d.cle].statut === "invalide" || resultats[d.cle].statut === "suspect")
-        .map(d => `${d.label} — ${resultats[d.cle].details}`);
+        .filter(doc => resultats[doc.cle].statut === "invalide" || resultats[doc.cle].statut === "suspect")
+        .map(doc => `${doc.label} — ${resultats[doc.cle].details}`);
       if (problemes.length) {
         return res.render("entreprise_documents", {
           titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type], documents: liste,
@@ -475,22 +426,23 @@ router.post("/:type/documents", (req, res, next) => {
         });
       }
 
-      const dossierClient = path.join(__dirname, "..", "uploads", `${type}_${req.session.demandeEntreprise.rccm}_${Date.now()}`);
+      const dossierClient = path.join(__dirname, "..", "uploads", `corporate_${(d.rccm || d.email || "dossier").replace(/[^a-zA-Z0-9]/g, "")}_${Date.now()}`);
       fs.mkdirSync(dossierClient, { recursive: true });
 
       const documentsEnregistres = {};
-      liste.forEach(d => {
-        const fichier = req.files[d.cle][0];
-        const nomStocke = `${d.cle}.pdf`;
+      liste.forEach(doc => {
+        const fichier = req.files[doc.cle][0];
+        const nomStocke = `${doc.cle}.pdf`;
         fs.writeFileSync(path.join(dossierClient, nomStocke), fichier.buffer);
-        documentsEnregistres[d.cle] = {
-          nom: fichier.originalname,
+        documentsEnregistres[doc.cle] = {
+          nom: fichier.originalname, libelle: doc.label,
           chemin: path.join(path.basename(dossierClient), nomStocke),
-          verification: resultats[d.cle].statut,
+          verification: resultats[doc.cle].statut,
         };
       });
 
-      req.session.demandeEntreprise.documents = documentsEnregistres;
+      d.documents = documentsEnregistres;
+      d.documents_soumis = true;
       persisterBrouillon(req);
       res.redirect(`/demande-entreprise/${type}/recapitulatif`);
     } catch (e) {
@@ -502,9 +454,8 @@ router.post("/:type/documents", (req, res, next) => {
 // Documents PME : 8 emplacements libres, intitulé tapé par le client,
 // AUCUN n'est obligatoire — le client peut envoyer un dossier incomplet.
 async function traiterDocumentsPME(req, res) {
-  const type = "pme";
   const d = req.session.demandeEntreprise;
-  if (!d || !d.agent_assigne) return res.redirect(etapeSuivante(type, d));
+  if (!d || !d.agent_assigne) return res.redirect(etapeSuivante(d));
 
   const documentsEnregistres = { ...(d.documents || {}) };
   let dossierClient = null;
@@ -516,10 +467,6 @@ async function traiterDocumentsPME(req, res) {
 
     if (!fichier) continue; // emplacement laissé vide — autorisé
 
-    // Reconnaissance adaptée : les mots-clés sont ceux tapés PAR LE CLIENT
-    // lui-même pour nommer sa pièce (pas de catalogue fixe possible ici,
-    // contrairement au particulier/corporate). Mêmes moteurs (OCR + texte
-    // natif) que le reste de l'application — voir modele/verification.js.
     const motsDuLibelle = normaliser(libelleSaisi).split(/[^a-z0-9]+/).filter(m => m.length >= 4);
     const motsCles = { [cle]: motsDuLibelle };
     const liste = [{ cle, label: libelleSaisi || `Document ${i}` }];
@@ -543,7 +490,7 @@ async function traiterDocumentsPME(req, res) {
       nom: fichier.originalname,
       libelle: libelleSaisi || `Document ${i}`,
       chemin: path.join(path.basename(dossierClient), nomStocke),
-      verification: resultat.statut, // "reconnu" | "a_verifier" (jamais "suspect" ici : pas de catalogue à comparer)
+      verification: resultat.statut,
     };
   }
 
@@ -574,30 +521,26 @@ router.use((err, req, res, next) => {
 // ============================================================
 // ÉTAPE 5 — RÉCAPITULATIF ET SOUMISSION
 // ============================================================
-router.get("/:type/recapitulatif", (req, res) => {
+router.get("/:type/recapitulatif", exigerBonType, (req, res) => {
   const type = req.params.type;
   const d = req.session.demandeEntreprise;
+  if (!d || !d.documents_soumis) return res.redirect(etapeSuivante(d));
 
   if (type === "pme") {
-    if (!d || !d.documents_soumis) return res.redirect(etapeSuivante(type, d));
     return res.render("entreprise_recapitulatif_pme", { titre: "Récapitulatif — Afriland E-Crédit", d });
   }
-
-  if (!d || !d.documents) return res.redirect(etapeSuivante(type, d));
   res.render("entreprise_recapitulatif", { titre: "Récapitulatif — Afriland E-Crédit", type, labelType: LABEL_TYPE[type], d, documents: DOCUMENTS_CORPORATE });
 });
 
-router.post("/:type/soumettre", (req, res) => {
+router.post("/:type/soumettre", exigerBonType, (req, res) => {
   const type = req.params.type;
   const d = req.session.demandeEntreprise;
-  if (!d || !d.email_verifie) return res.redirect(etapeSuivante(type, d));
+  if (!d || !d.email_verifie || !d.documents_soumis) return res.redirect(etapeSuivante(d));
 
   const reference = genererReference(type);
 
+  let scoreRisque = null;
   if (type === "pme") {
-    if (!d.documents_soumis) return res.redirect(etapeSuivante(type, d));
-
-    let scoreRisque = null;
     try {
       scoreRisque = evaluerRisquePME({
         montant: d.montant_credit, chiffre_affaires: d.chiffre_affaires,
@@ -606,37 +549,27 @@ router.post("/:type/soumettre", (req, res) => {
     } catch (e) {
       console.error(">>> [ERREUR MODELE DE RISQUE PME]", e.message || e);
     }
-
-    creerDemande({
-      reference, type, nom_affiche: d.raison_sociale || `Dossier PME (${d.email})`,
-      raison_sociale: d.raison_sociale, numero_dossier: d.numero_dossier, forme_juridique: d.forme_juridique,
-      rccm: d.rccm, niu_entreprise: d.niu, adresse: d.adresse, capital: d.capital,
-      chiffre_affaires: d.chiffre_affaires, effectif: d.effectif, type_activite: d.type_activite,
-      principaux_fournisseurs: d.principaux_fournisseurs, motif: d.but_credit,
-      operation_compte: d.operation_compte, origine_fonds: d.origine_fonds, destination: d.destination,
-      montant: parseFloat(d.montant_credit) || 0, date_creation_entreprise: d.date_creation_entreprise,
-      total_bilan: d.total_bilan, fatca: d.fatca,
-      representant_nom: d.representant_nom, representant_prenom: d.representant_prenom,
-      email: d.email, telephone: d.telephone, email_verifie: true,
-      agent_assigne: d.agent_assigne, agent_assigne_nom: d.agent_assigne_nom,
-      score_risque_pourcentage: scoreRisque ? scoreRisque.pourcentage : null,
-      score_risque_facteurs: scoreRisque ? scoreRisque.facteurs : null,
-      documents: d.documents || {}, statut: "nouvelle", date_soumission: new Date().toISOString(),
-    });
-  } else {
-    if (!d.documents) return res.redirect(etapeSuivante(type, d));
-    creerDemande({
-      reference, type, nom_affiche: d.raison_sociale,
-      raison_sociale: d.raison_sociale, rccm: d.rccm, niu_entreprise: d.niu_entreprise,
-      secteur_activite: d.secteur_activite, representant_nom: d.representant_nom, representant_prenom: d.representant_prenom,
-      email: d.email, telephone: d.telephone, email_verifie: true,
-      montant: d.montant, duree: d.duree, motif: d.motif,
-      documents: d.documents, statut: "nouvelle", date_soumission: new Date().toISOString(),
-    });
   }
 
+  creerDemande({
+    reference, type, nom_affiche: d.raison_sociale || `Dossier ${LABEL_TYPE[type]} (${d.email})`,
+    raison_sociale: d.raison_sociale, numero_dossier: d.numero_dossier, forme_juridique: d.forme_juridique,
+    rccm: d.rccm, niu_entreprise: d.niu, adresse: d.adresse, capital: d.capital,
+    chiffre_affaires: d.chiffre_affaires, effectif: d.effectif, type_activite: d.type_activite,
+    principaux_fournisseurs: d.principaux_fournisseurs, motif: d.but_credit,
+    operation_compte: d.operation_compte, origine_fonds: d.origine_fonds, destination: d.destination,
+    montant: parseFloat(d.montant_credit) || 0, date_creation_entreprise: d.date_creation_entreprise,
+    total_bilan: d.total_bilan, fatca: d.fatca,
+    representant_nom: d.representant_nom, representant_prenom: d.representant_prenom,
+    email: d.email, telephone: d.telephone, email_verifie: true,
+    agent_assigne: d.agent_assigne, agent_assigne_nom: d.agent_assigne_nom,
+    score_risque_pourcentage: scoreRisque ? scoreRisque.pourcentage : null,
+    score_risque_facteurs: scoreRisque ? scoreRisque.facteurs : null,
+    documents: d.documents || {}, statut: "nouvelle", date_soumission: new Date().toISOString(),
+  });
+
   if (req.session.brouillonEntrepriseId) supprimerBrouillon(req.session.brouillonEntrepriseId);
-  res.clearCookie(`brouillon_entreprise_${type}_id`);
+  res.clearCookie("brouillon_entreprise_id");
   req.session.demandeEntreprise = null;
   delete req.session.brouillonEntrepriseId;
   res.redirect("/confirmation/" + reference);

@@ -9,7 +9,7 @@ const { genererCodeOTP, envoyerCodeParEmail, masquerEmail } = require("../modele
 const { texteParOCR, texteParOCRImage, extraireImagePNGDuPDF, imageBruteVersPNG } = require("../modele/ocr");
 const { normaliser, verifierDocument } = require("../modele/verification");
 const { evaluerRisque } = require("../modele/risque");
-const { calculerRemboursement } = require("../modele/remboursement");
+const { calculerRemboursement, validerAdequationDureeMontant } = require("../modele/remboursement");
 const { SMS_ACTIF, envoyerCodeParSMS, verifierCodeSMS } = require("../modele/sms");
 const {
   creerDemande, trouverParReference,
@@ -425,6 +425,15 @@ router.post("/demande/pret", (req, res) => {
   }
   if (!duree || !motif || !situation) {
     return rendreErreur("Merci de compléter tous les champs.");
+  }
+
+  const adequation = validerAdequationDureeMontant(m, parseInt(duree));
+  if (!adequation.valide) {
+    return rendreErreur(
+      `Avec ${m.toLocaleString('fr-FR')} FCFA sur ${duree} mois, votre mensualité serait de ` +
+      `${adequation.mensualite.toLocaleString('fr-FR')} FCFA/mois, ce qui dépasse notre plafond indicatif. ` +
+      `Choisissez une durée d'au moins ${adequation.dureeMinimaleConseillee} mois, ou réduisez le montant demandé.`
+    );
   }
 
   const manquants = [];
