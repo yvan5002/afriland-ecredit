@@ -21,8 +21,8 @@
                    value="<%= existant ? existant.libelle : '' %>" style="width:100%; margin-bottom:8px; padding:9px 12px; border:1px solid var(--line); border-radius:8px;">
             <input type="file" name="fichier_<%= i %>" accept=".pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png">
             <% if (existant) { %>
-              <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">
-                <span style="color:#1B5FA8; font-weight:700;">✓ Déjà déposé</span> — <%= existant.nom %>
+              <div style="font-size:11px; color:var(--ink-soft); margin-top:6px; display:flex; align-items:center; gap:6px;">
+                <span class="coche-bleue" style="width:16px; height:16px; font-size:10px;">✓</span> Déjà déposé — <%= existant.nom %>
               </div>
             <% } %>
           </div>
@@ -33,6 +33,7 @@
         <button type="submit" class="btn">Continuer →</button>
       </div>
     </form>
+    <a href="/demande-entreprise/annuler" class="lien-annuler">Annuler ma demande</a>
   </div>
 </div>
 

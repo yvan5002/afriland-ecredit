@@ -9,7 +9,6 @@ const { genererCodeOTP, envoyerCodeParEmail, masquerEmail } = require("../modele
 const { texteParOCR, texteParOCRImage, extraireImagePNGDuPDF, imageBruteVersPNG } = require("../modele/ocr");
 const { normaliser, verifierDocument } = require("../modele/verification");
 const { evaluerRisque } = require("../modele/risque");
-const { calculerRemboursement, validerAdequationDureeMontant } = require("../modele/remboursement");
 const { SMS_ACTIF, envoyerCodeParSMS, verifierCodeSMS } = require("../modele/sms");
 const {
   creerDemande, trouverParReference,
@@ -230,6 +229,14 @@ router.get("/demande/nouveau", (req, res) => {
   res.redirect("/demande");
 });
 
+router.get("/demande/annuler", (req, res) => {
+  if (req.session.brouillonId) supprimerBrouillon(req.session.brouillonId);
+  res.clearCookie("brouillon_id");
+  req.session.demande = null;
+  delete req.session.brouillonId;
+  res.redirect("/");
+});
+
 router.post("/demande/etape1", async (req, res) => {
   const { nom, prenom, email, telephone, cni, numero_compte } = req.body;
   const telValide = validerTelephone(telephone);
@@ -256,9 +263,30 @@ router.post("/demande/etape1", async (req, res) => {
   }
 
   const code = genererCodeOTP();
-  req.session.demande = {
+  const ancien = req.session.demande || {};
+  const emailInchange = ancien.email === email && ancien.email_verifie;
+
+  const nouvellesDonnees = {
     nom, prenom, email, telephone: telValide, cni: cniValide,
     numero_compte: numeroCompteValide,
+  };
+
+  if (emailInchange) {
+    // Le client revient corriger une info : email déjà vérifié et
+    // inchangé, inutile de le forcer à ressaisir un nouveau code.
+    req.session.demande = {
+      ...nouvellesDonnees,
+      email_verifie: true,
+      methode_verification: ancien.methode_verification,
+      agent_assigne: ancien.agent_assigne,
+      documents: ancien.documents,
+    };
+    persisterBrouillon(req);
+    return res.redirect(etapeSuivante(req.session.demande));
+  }
+
+  req.session.demande = {
+    ...nouvellesDonnees,
     email_verifie: false,
     otp_hash: bcrypt.hashSync(code, 10),
     otp_expire: Date.now() + 10 * 60 * 1000,
@@ -427,15 +455,6 @@ router.post("/demande/pret", (req, res) => {
     return rendreErreur("Merci de compléter tous les champs.");
   }
 
-  const adequation = validerAdequationDureeMontant(m, parseInt(duree));
-  if (!adequation.valide) {
-    return rendreErreur(
-      `Avec ${m.toLocaleString('fr-FR')} FCFA sur ${duree} mois, votre mensualité serait de ` +
-      `${adequation.mensualite.toLocaleString('fr-FR')} FCFA/mois, ce qui dépasse notre plafond indicatif. ` +
-      `Choisissez une durée d'au moins ${adequation.dureeMinimaleConseillee} mois, ou réduisez le montant demandé.`
-    );
-  }
-
   const manquants = [];
   CHAMPS_CATEGORIELS_PROFIL.forEach(c => { if (!req.body[c]) manquants.push(c); });
   ["telephone", "travailleur_etranger"].forEach(c => { if (!req.body[c]) manquants.push(c); });
@@ -447,7 +466,6 @@ router.post("/demande/pret", (req, res) => {
   req.session.demande.montant = m;
   req.session.demande.duree = parseInt(duree);
   req.session.demande.motif = motif;
-  req.session.demande.remboursement = calculerRemboursement(m, parseInt(duree));
   req.session.demande.situation = req.body.situation === "__autre__" ? (req.body.situation_autre || "autre").trim() : req.body.situation;
 
   const profilRisque = {
@@ -653,9 +671,8 @@ router.post("/demande/soumettre", (req, res) => {
     reference, type: "particulier", nom_affiche: `${d.prenom} ${d.nom}`,
     nom: d.nom, prenom: d.prenom, email: d.email, telephone: d.telephone, cni: d.cni,
     numero_compte: d.numero_compte, email_verifie: true,
-    montant: d.montant, duree: d.duree, motif: d.motif, situation: d.situation,
-    remboursement: d.remboursement || null,
     agent_assigne: d.agent_assigne || null,
+    montant: d.montant, duree: d.duree, motif: d.motif, situation: d.situation,
     profil_risque: d.profil_risque || null,
     score_risque_pourcentage: scoreRisque ? scoreRisque.pourcentage : null,
     score_risque_facteurs: scoreRisque ? scoreRisque.facteurs : null,

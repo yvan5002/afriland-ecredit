@@ -23,14 +23,16 @@ db.defaults({ demandes: [], brouillons: [], comptes: [] }).write();
 const COMPTES_PAR_DEFAUT = [
   // Gestionnaires "particulier" nommés — le client choisit lui-même l'un
   // d'eux au dépôt de ses documents ; chacun ne voit que ses propres
-  // dossiers assignés (voir routes/espace-fabrique.js).
+  // dossiers assignés (voir routes/espace-fabrique.js). Ils ne font que
+  // RECOMMANDER une décision : le chef GFC valide définitivement.
   { identifiant: "abomo", mdp: "abomo123", nom: "Mme Abomo", role: "gestionnairegfc" },
   { identifiant: "mabou", mdp: "mabou123", nom: "Mme Mabou", role: "gestionnairegfc" },
   { identifiant: "ngo", mdp: "ngo123", nom: "Mme Ngo", role: "gestionnairegfc" },
   { identifiant: "emile", mdp: "emile123", nom: "Mr Emile", role: "gestionnairegfc" },
-  // Compte générique conservé pour la démo/tests (n'apparaît pas dans la
-  // liste de choix du client, donc ne reçoit aucun dossier automatiquement).
-  { identifiant: "gestionnairegfc", mdp: "afriland2026", nom: "Gestionnaire GFC Afriland", role: "gestionnairegfc" },
+
+  // Chef GFC (particuliers) — valide définitivement après recommandation
+  // d'un gestionnaire, et gère (crée/supprime) les comptes gestionnaires.
+  { identifiant: "illordson", mdp: "illordson123", nom: "Mr Illordson", role: "chef_gfc" },
 
   // Agents PME nommés — le client en choisit un après avoir rempli les
   // informations de son entreprise.
@@ -44,10 +46,18 @@ const COMPTES_PAR_DEFAUT = [
   { identifiant: "noudjeu", mdp: "noudjeu123", nom: "Mme Noudjeu", role: "pme" },
 
   // Chef des PME — valide définitivement les dossiers PME après la
-  // recommandation d'un agent (double validation, voir routes/chef-pme.js).
+  // recommandation d'un agent, et gère les comptes agents PME.
   { identifiant: "schouala", mdp: "schouala123", nom: "Mr Serge Chouala", role: "chef_pme" },
 
-  { identifiant: "corporate", mdp: "corporate2026", nom: "Gestionnaire Corporate Afriland", role: "corporate" },
+  // Agents Corporate nommés.
+  { identifiant: "asialou", mdp: "asialou123", nom: "Mr Asialou", role: "corporate" },
+  { identifiant: "wouanda", mdp: "wouanda123", nom: "Mr Wouanda", role: "corporate" },
+  { identifiant: "kengne", mdp: "kengne123", nom: "Mr Kengne", role: "corporate" },
+  { identifiant: "mbesse", mdp: "mbesse123", nom: "Mr Mbesse", role: "corporate" },
+
+  // Chef Corporate — valide définitivement les dossiers Corporate après
+  // la recommandation d'un agent, et gère les comptes agents Corporate.
+  { identifiant: "frank", mdp: "frank123", nom: "Mr Frank", role: "chef_corporate" },
 ];
 if (db.get("comptes").value().length === 0) {
   COMPTES_PAR_DEFAUT.forEach((c, i) => {
@@ -148,17 +158,17 @@ function enregistrerValidationChef(id, { decision, commentaire, nomChef }) {
     .write();
 }
 
-function listerDemandesEnAttenteChef() {
+function listerDemandesEnAttenteChef(type) {
   return db.get("demandes")
-    .filter(d => d.statut === "recommandee_acceptee" || d.statut === "recommandee_refusee")
+    .filter(d => (d.statut === "recommandee_acceptee" || d.statut === "recommandee_refusee") && (!type || d.type === type))
     .sortBy("recommandation_date")
     .reverse()
     .value();
 }
 
-function listerDemandesTraiteesParChef() {
+function listerDemandesTraiteesParChef(type) {
   return db.get("demandes")
-    .filter(d => (d.statut === "acceptee" || d.statut === "refusee") && d.type === "pme" && d.traite_par_nom)
+    .filter(d => (d.statut === "acceptee" || d.statut === "refusee") && (!type || d.type === type) && d.traite_par_nom)
     .sortBy("date_traitement")
     .reverse()
     .value();
@@ -282,6 +292,10 @@ function definirActifCompte(id, actif) {
   db.get("comptes").find({ id: parseInt(id) }).assign({ actif }).write();
 }
 
+function supprimerCompte(id) {
+  db.get("comptes").remove({ id: parseInt(id) }).write();
+}
+
 // roleAttendu : si fourni, le compte doit avoir exactement ce rôle pour être validé
 // (empêche un identifiant PME de se connecter sur l'espace Corporate, par exemple).
 function verifierMdpCompte(identifiant, mdp, roleAttendu) {
@@ -300,5 +314,5 @@ module.exports = {
   listerToutesDemandes, statistiquesGlobales,
   listerComptes, listerComptesParRole, creerCompte,
   trouverCompteParIdentifiant, trouverCompteParId,
-  definirActifCompte, verifierMdpCompte,
+  definirActifCompte, supprimerCompte, verifierMdpCompte,
 };

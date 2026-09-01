@@ -55,7 +55,7 @@ function creerRouteurEspace({ role, type, basePath, nomEspace, assignationParAge
     res.render("espace_connexion", {
       titre: `Espace ${nomEspace} — Afriland E-Crédit`,
       basePath, nomEspace,
-      erreur: req.query.deconnecte ? "Votre accès a été désactivé par un directeur." : null,
+      erreur: req.query.deconnecte ? "Votre accès a été désactivé." : null,
     });
   });
 

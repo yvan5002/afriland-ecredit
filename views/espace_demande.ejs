@@ -79,11 +79,6 @@
     <div class="recap-ligne"><span>Objet</span><span><%= demande.motif || '—' %></span></div>
     <% if (demande.type === 'particulier') { %>
       <div class="recap-ligne"><span>Situation professionnelle</span><span><%= demande.situation %></span></div>
-      <% if (demande.remboursement) { %>
-        <div class="recap-ligne"><span>Taux annuel indicatif</span><span><%= demande.remboursement.tauxAnnuel %>%</span></div>
-        <div class="recap-ligne"><span>Mensualité estimée</span><span><%= demande.remboursement.mensualite.toLocaleString('fr-FR') %> FCFA/mois</span></div>
-        <div class="recap-ligne"><span>Coût total du crédit</span><span><%= demande.remboursement.coutTotalCredit.toLocaleString('fr-FR') %> FCFA (<%= demande.remboursement.pourcentageCout %>%)</span></div>
-      <% } %>
     <% } %>
     <div class="recap-ligne"><span>Date de soumission</span><span><%= new Date(demande.date_soumission).toLocaleString('fr-FR') %></span></div>
 

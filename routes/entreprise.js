@@ -57,11 +57,12 @@ const AGENTS_PME = [
   { identifiant: "noudjeu", nom: "Mme Noudjeu" },
 ];
 
-// Agents Corporate — un seul compte pour l'instant (aucun nom fourni par
-// l'agence à ce stade). Ajouter des entrées ici suffira à en proposer
-// davantage au client, exactement comme pour les agents PME ci-dessus.
+// Agents Corporate nommés — comptes créés automatiquement (voir db/database.js).
 const AGENTS_CORPORATE = [
-  { identifiant: "corporate", nom: "Service Corporate" },
+  { identifiant: "asialou", nom: "Mr Asialou" },
+  { identifiant: "wouanda", nom: "Mr Wouanda" },
+  { identifiant: "kengne", nom: "Mr Kengne" },
+  { identifiant: "mbesse", nom: "Mr Mbesse" },
 ];
 
 function agentsPour(type) { return type === "pme" ? AGENTS_PME : AGENTS_CORPORATE; }
@@ -227,11 +228,17 @@ router.get("/", (req, res) => {
   const reprise = !!req.session.repriseEntreprise;
   req.session.repriseEntreprise = false;
   const d = req.session.demandeEntreprise;
-  if (d && d.email) return res.redirect(etapeSuivante(d));
+  // Toujours afficher le formulaire, même si une demande est déjà en
+  // cours plus loin : le client doit pouvoir revenir corriger ses
+  // informations à tout moment sans être renvoyé de force en avant.
   res.render("entreprise_infos_pme", {
     titre: "Votre entreprise — Afriland E-Crédit",
     erreur: null, donnees: d || {}, reprise,
   });
+});
+
+router.get("/continuer", (req, res) => {
+  res.redirect(etapeSuivante(req.session.demandeEntreprise));
 });
 
 router.get("/nouveau", (req, res) => {
@@ -240,6 +247,14 @@ router.get("/nouveau", (req, res) => {
   req.session.demandeEntreprise = {};
   delete req.session.brouillonEntrepriseId;
   res.redirect("/demande-entreprise");
+});
+
+router.get("/annuler", (req, res) => {
+  if (req.session.brouillonEntrepriseId) supprimerBrouillon(req.session.brouillonEntrepriseId);
+  res.clearCookie("brouillon_entreprise_id");
+  req.session.demandeEntreprise = null;
+  delete req.session.brouillonEntrepriseId;
+  res.redirect("/");
 });
 
 router.post("/infos", async (req, res) => {
@@ -257,10 +272,30 @@ router.post("/infos", async (req, res) => {
   }
 
   const type = determinerType(req.body.chiffre_affaires);
+  const ancien = req.session.demandeEntreprise || {};
+  // Le client revient corriger une info : si l'email n'a pas changé et
+  // avait déjà été vérifié, inutile de le forcer à ressaisir un nouveau
+  // code — on conserve la vérification déjà faite.
+  const emailInchange = ancien.email === email && ancien.email_verifie;
+  // Si le type change (chiffre d'affaires modifié au point de basculer
+  // PME <-> Corporate), l'agent et les documents déjà choisis ne sont
+  // plus valables pour la nouvelle catégorie : on les réinitialise.
+  const typeInchange = ancien.type === type;
 
   const donnees = { type, email };
   CHAMPS_TEXTE_ENTREPRISE.forEach(champ => { donnees[champ] = (req.body[champ] || "").trim(); });
   donnees.telephone = validerTelephoneSouple(req.body.telephone);
+
+  if (emailInchange && typeInchange) {
+    donnees.email_verifie = true;
+    donnees.agent_assigne = ancien.agent_assigne;
+    donnees.agent_assigne_nom = ancien.agent_assigne_nom;
+    donnees.documents = ancien.documents;
+    donnees.documents_soumis = ancien.documents_soumis;
+    req.session.demandeEntreprise = donnees;
+    persisterBrouillon(req);
+    return res.redirect(etapeSuivante(donnees));
+  }
 
   const code = genererCodeOTP();
   donnees.email_verifie = false;
@@ -383,7 +418,7 @@ router.get("/:type/documents", exigerBonType, (req, res) => {
   }
   res.render("entreprise_documents", {
     titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type],
-    documents: DOCUMENTS_CORPORATE, erreur: null,
+    documents: DOCUMENTS_CORPORATE, documentsExistants: d.documents || {}, erreur: null,
   });
 });
 
@@ -404,42 +439,40 @@ router.post("/:type/documents", exigerBonType, (req, res, next) => {
     try {
       const liste = DOCUMENTS_CORPORATE;
       const d = req.session.demandeEntreprise;
-      const manquants = liste.filter(doc => !req.files || !req.files[doc.cle]);
-      if (manquants.length) {
-        return res.render("entreprise_documents", {
-          titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type], documents: liste,
-          erreur: `Pièce(s) manquante(s) : ${manquants.map(doc => doc.label).join(", ")}`,
-        });
-      }
 
-      const resultats = {};
+      // Rien n'est obligatoire ici, comme pour les PME : le client peut
+      // déposer seulement une partie des pièces, dans n'importe quel
+      // emplacement — on traite uniquement celles réellement envoyées.
+      const documentsEnregistres = { ...(d.documents || {}) };
+      let dossierClient = null;
+
       for (const doc of liste) {
-        resultats[doc.cle] = await verifierDocument(doc.cle, req.files[doc.cle][0].buffer, req.files[doc.cle][0].mimetype, MOTS_CLES_CORPORATE, liste);
-      }
-      const problemes = liste
-        .filter(doc => resultats[doc.cle].statut === "invalide" || resultats[doc.cle].statut === "suspect")
-        .map(doc => `${doc.label} — ${resultats[doc.cle].details}`);
-      if (problemes.length) {
-        return res.render("entreprise_documents", {
-          titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type], documents: liste,
-          erreur: `Certaines pièces déposées ne correspondent pas à ce qui est attendu :\n${problemes.join(" | ")}`,
-        });
-      }
+        const fichier = req.files && req.files[doc.cle] && req.files[doc.cle][0];
+        if (!fichier) continue;
 
-      const dossierClient = path.join(__dirname, "..", "uploads", `corporate_${(d.rccm || d.email || "dossier").replace(/[^a-zA-Z0-9]/g, "")}_${Date.now()}`);
-      fs.mkdirSync(dossierClient, { recursive: true });
+        const resultat = await verifierDocument(doc.cle, fichier.buffer, fichier.mimetype, MOTS_CLES_CORPORATE, liste);
+        if (resultat.statut === "invalide") {
+          return res.render("entreprise_documents", {
+            titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type], documents: liste,
+            documentsExistants: documentsEnregistres,
+            erreur: `${doc.label} — ${resultat.details}`,
+          });
+        }
 
-      const documentsEnregistres = {};
-      liste.forEach(doc => {
-        const fichier = req.files[doc.cle][0];
+        if (!dossierClient) {
+          dossierClient = path.join(__dirname, "..", "uploads", `corporate_${(d.rccm || d.email || "dossier").replace(/[^a-zA-Z0-9]/g, "")}_${Date.now()}`);
+          fs.mkdirSync(dossierClient, { recursive: true });
+        }
         const nomStocke = `${doc.cle}.pdf`;
         fs.writeFileSync(path.join(dossierClient, nomStocke), fichier.buffer);
         documentsEnregistres[doc.cle] = {
           nom: fichier.originalname, libelle: doc.label,
           chemin: path.join(path.basename(dossierClient), nomStocke),
-          verification: resultats[doc.cle].statut,
+          // "reconnu" ou "a_verifier" seulement : jamais bloquant ici,
+          // le client pouvant déposer n'importe quelle pièce n'importe où.
+          verification: resultat.statut === "suspect" ? "a_verifier" : resultat.statut,
         };
-      });
+      }
 
       d.documents = documentsEnregistres;
       d.documents_soumis = true;
@@ -512,6 +545,7 @@ router.use((err, req, res, next) => {
     }
     return res.render("entreprise_documents", {
       titre: "Vos documents — Afriland E-Crédit", type, labelType: LABEL_TYPE[type], documents: DOCUMENTS_CORPORATE,
+      documentsExistants: (req.session.demandeEntreprise && req.session.demandeEntreprise.documents) || {},
       erreur: "Seuls les fichiers PDF, JPG ou PNG sont acceptés pour chaque pièce.",
     });
   }

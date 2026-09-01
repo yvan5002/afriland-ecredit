@@ -36,12 +36,10 @@ app.use(session({
 app.use("/gestionnairegfc", require("./routes/gestionnairegfc"));
 app.use("/pme", require("./routes/pme"));
 app.use("/corporate", require("./routes/corporate"));
+app.use("/chef-gfc", require("./routes/chef-gfc"));
 app.use("/chef-pme", require("./routes/chef-pme"));
+app.use("/chef-corporate", require("./routes/chef-corporate"));
 app.use("/demande-entreprise", require("./routes/entreprise"));
-// L'espace directeur d'agence n'est lié depuis aucune page publique : on y accède
-// uniquement en connaissant directement l'adresse /directeur/connexion,
-// ou via le formulaire de connexion unique ci-dessous.
-app.use("/directeur", require("./routes/directeur"));
 app.use("/connexion", require("./routes/connexion"));
 app.use("/", require("./routes/portail"));
 

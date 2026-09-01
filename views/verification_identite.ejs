@@ -5,6 +5,11 @@
     <h2>Vérification d'identité</h2>
     <p class="souscription">Dernière étape avant le récapitulatif — nous comparons une photo de vous à celle de votre CNI, pour confirmer que c'est bien vous.</p>
 
+    <div class="info-reprise" style="border-color:var(--gold);">
+      Cette vérification est <strong>facultative pour le moment</strong>. Vous pouvez la passer et continuer directement —
+      <a href="#" id="lien-passer-toujours">passer cette étape →</a>
+    </div>
+
     <% if (erreur) { %><div class="erreur">⚠️ <%= erreur %></div><% } %>
 
     <div id="zone-chargement" style="text-align:center; padding:30px 0; color:var(--ink-soft); font-size:13px;">
@@ -44,6 +49,7 @@
       Caméra indisponible sur cet appareil/navigateur ? Un gestionnaire pourra vérifier votre identité manuellement à partir de vos documents.
       <br><a href="#" id="lien-passer" style="color:var(--red-dark); font-weight:600;">Continuer sans vérification automatique →</a>
     </p>
+    <a href="/demande/annuler" class="lien-annuler">Annuler ma demande</a>
   </div>
 </div>
 
@@ -66,6 +72,7 @@
   const btnContinuer = document.getElementById("btn-continuer");
   const lienCameraIndisponible = document.getElementById("lien-camera-indisponible");
   const lienPasser = document.getElementById("lien-passer");
+  const lienPasserToujours = document.getElementById("lien-passer-toujours");
 
   function afficherResultat(html) {
     zoneResultat.style.display = "block";
@@ -78,6 +85,14 @@
     formResultat.style.display = "block";
     btnContinuer.disabled = false;
   }
+
+  // Étape facultative pour le moment : ce lien reste toujours disponible,
+  // même quand la caméra fonctionne, pour ne jamais bloquer un client.
+  lienPasserToujours.addEventListener("click", function (e) {
+    e.preventDefault();
+    autoriserContinuer(false, -1);
+    formResultat.submit();
+  });
 
   function permettrePasserSansVerification() {
     lienCameraIndisponible.style.display = "block";

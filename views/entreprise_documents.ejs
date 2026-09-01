@@ -3,20 +3,26 @@
 <div class="container">
   <div class="card">
     <h2>Vos documents</h2>
-    <p class="souscription">Étape 4 sur 5 — Dossier <strong><%= labelType %></strong>. Déposez un fichier <strong>PDF ou une photo (JPG/PNG)</strong> pour chacune des pièces exigées.</p>
-
-    <div class="info-reprise" style="border-color:var(--gold);">
-      Chaque document est vérifié automatiquement à l'envoi : assurez-vous de déposer le bon fichier au bon endroit.
-    </div>
+    <p class="souscription">
+      Dossier <strong><%= labelType %></strong>. Déposez ce que vous avez sous la main —
+      <strong>rien n'est obligatoire</strong>, vous pouvez envoyer votre dossier même incomplet
+      et compléter plus tard avec votre agent.
+    </p>
 
     <% if (erreur) { %><div class="erreur">⚠️ <%- erreur.split('\n').join('<br>') %></div><% } %>
 
     <form method="POST" action="/demande-entreprise/<%= type %>/documents" enctype="multipart/form-data">
       <% documents.forEach(doc => { %>
+        <% const existant = documentsExistants && documentsExistants[doc.cle]; %>
         <div class="doc-item">
           <div class="doc-num"><%= doc.numero %></div>
-          <div class="doc-label"><%= doc.label %></div>
-          <input type="file" name="<%= doc.cle %>" accept=".pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png" required>
+          <div style="flex:1;">
+            <div class="doc-label"><%= doc.label %></div>
+            <input type="file" name="<%= doc.cle %>" accept=".pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png" style="margin-top:6px;">
+          </div>
+          <% if (existant) { %>
+            <span class="coche-bleue" title="Déjà déposé">✓</span>
+          <% } %>
         </div>
       <% }) %>
       <div class="actions">
@@ -24,6 +30,7 @@
         <button type="submit" class="btn">Continuer →</button>
       </div>
     </form>
+    <a href="/demande-entreprise/annuler" class="lien-annuler">Annuler ma demande</a>
   </div>
 </div>
 

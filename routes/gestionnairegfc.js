@@ -6,4 +6,5 @@ module.exports = creerRouteurEspace({
   basePath: "/gestionnairegfc",
   nomEspace: "Gestionnaire GFC",
   assignationParAgent: true, // le client choisit son gestionnaire (Abomo, Mabou, Ngo, Emile)
+  deuxEtapes: true,          // la décision de l'agent est une recommandation, validée ensuite par le chef GFC
 });
